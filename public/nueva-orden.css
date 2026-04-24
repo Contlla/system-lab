@@ -1,0 +1,767 @@
+﻿*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green:      #2ecc71;
+      --green-dark: #27ae60;
+      --green-bg:   #eafaf1;
+      --red:        #e74c3c;
+      --red-dark:   #c0392b;
+      --blue:       #3498db;
+      --yellow:     #f39c12;
+      --purple:     #9b59b6;
+      --bg:         #f0f2f5;
+      --surface:    #ffffff;
+      --border:     #e2e8f0;
+      --text:       #1a202c;
+      --muted:      #718096;
+      --shadow-sm:  0 1px 3px rgba(0,0,0,0.08);
+      --shadow:     0 4px 16px rgba(0,0,0,0.08);
+      --radius:     14px;
+      --radius-sm:  8px;
+    }
+
+    .nueva-orden-page {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    /* â”€â”€ TOPBAR â”€â”€ */
+    #dashboard-nueva-orden-root .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    #dashboard-nueva-orden-root .topbar-left { display: flex; align-items: center; gap: 14px; min-width: 0; }
+
+    #dashboard-nueva-orden-root .page-title { font-size: 1.4rem; font-weight: 800; letter-spacing: -0.5px; }
+    #dashboard-nueva-orden-root .page-subtitle { font-size: 13px; color: var(--muted); font-weight: 500; }
+
+    /* â”€â”€ TABS â”€â”€ */
+    #dashboard-nueva-orden-root .tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 6px;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 20px;
+      width: fit-content;
+    }
+
+    #dashboard-nueva-orden-root .tab-btn {
+      padding: 9px 20px;
+      border-radius: 10px;
+      border: none;
+      background: transparent;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    #dashboard-nueva-orden-root .tab-btn.active { background: var(--green); color: white; }
+    #dashboard-nueva-orden-root .tab-btn:hover:not(.active) { background: var(--bg); color: var(--text); }
+
+    /* â”€â”€ SEARCH BAR â”€â”€ */
+    #dashboard-nueva-orden-root .search-panel {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      padding: 16px 20px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    #dashboard-nueva-orden-root .search-wrap {
+      flex: 1;
+      min-width: 220px;
+      position: relative;
+    }
+
+    #dashboard-nueva-orden-root .search-wrap svg {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px;
+      height: 16px;
+      fill: var(--muted);
+      pointer-events: none;
+    }
+
+    #dashboard-nueva-orden-root .search-input {
+      width: 100%;
+      padding: 10px 12px 10px 38px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-family: 'DM Mono', monospace;
+      outline: none;
+      background: var(--bg);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    #dashboard-nueva-orden-root .search-input:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(46,204,113,0.12);
+      background: white;
+    }
+    #dashboard-nueva-orden-root .search-input::placeholder { font-family: 'Plus Jakarta Sans', sans-serif; color: #a0aec0; }
+
+    /* â”€â”€ FORM CARD â”€â”€ */
+    #dashboard-nueva-orden-root .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+
+    #dashboard-nueva-orden-root .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    #dashboard-nueva-orden-root .card-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #dashboard-nueva-orden-root .card-body { padding: 20px; }
+
+    /* â”€â”€ FORM GRID â”€â”€ */
+    #dashboard-nueva-orden-root .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 14px;
+    }
+
+    #dashboard-nueva-orden-root .form-grid.cols-3 { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+    #dashboard-nueva-orden-root .field { display: flex; flex-direction: column; gap: 5px; }
+    #dashboard-nueva-orden-root .field.full { grid-column: 1 / -1; }
+
+    #dashboard-nueva-orden-root label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    #dashboard-nueva-orden-root input, #dashboard-nueva-orden-root select {
+      padding: 10px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      background: var(--bg);
+      transition: border-color 0.2s, box-shadow 0.2s;
+      width: 100%;
+      color: var(--text);
+    }
+    #dashboard-nueva-orden-root input:focus, #dashboard-nueva-orden-root select:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(46,204,113,0.12);
+      background: white;
+    }
+    #dashboard-nueva-orden-root input:disabled, #dashboard-nueva-orden-root select:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      background: #f8fafc;
+    }
+
+    /* â”€â”€ FOLIO BADGE â”€â”€ */
+    #dashboard-nueva-orden-root .folio-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #f0f9f4;
+      border: 1.5px solid var(--green);
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--green-dark);
+    }
+
+    /* â”€â”€ STATUS BADGE â”€â”€ */
+    #dashboard-nueva-orden-root .estado-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    #dashboard-nueva-orden-root .estado-pendiente   { background: #fef9e7; color: #d68910; border: 1px solid #f9e79f; }
+    #dashboard-nueva-orden-root .estado-en_proceso  { background: #eaf3fb; color: #1a5276; border: 1px solid #aed6f1; }
+    #dashboard-nueva-orden-root .estado-completado  { background: #eafaf1; color: #1e8449; border: 1px solid #a9dfbf; }
+    #dashboard-nueva-orden-root .estado-cancelado   { background: #fdedec; color: #922b21; border: 1px solid #f5b7b1; }
+
+    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+       SELECTOR DE ESTUDIOS â€” OPTIMIZADO (live-search + lista compacta)
+    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+
+    /* Buscador de estudios */
+    .estudios-search-wrap {
+      position: relative;
+      margin-bottom: 12px;
+    }
+    .estudios-search-wrap svg {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px; height: 16px;
+      fill: var(--muted);
+      pointer-events: none;
+    }
+    .estudios-search {
+      width: 100%;
+      padding: 10px 12px 10px 38px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      background: var(--bg);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .estudios-search:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(46,204,113,0.12);
+      background: white;
+    }
+    .estudios-search::placeholder { color: #a0aec0; }
+
+    /* Filtros de categorÃ­a */
+    .category-filters {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .cat-btn {
+      padding: 5px 12px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border);
+      background: white;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+    .cat-btn:hover { border-color: var(--green); color: var(--green-dark); }
+    .cat-btn.active { background: var(--green); border-color: var(--green); color: white; }
+
+    /* Lista compacta de estudios */
+    .estudios-list-wrap {
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow-y: auto;
+      max-height: 340px;
+      background: var(--bg);
+    }
+
+    .estudio-row {
+      display: flex;
+      align-items: center;
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.12s;
+      user-select: none;
+      gap: 10px;
+    }
+    .estudio-row:last-child { border-bottom: none; }
+    .estudio-row:hover:not(.locked)    { background: #f0faf5; }
+    .estudio-row.selected              { background: var(--green-bg); }
+    .estudio-row.selected .row-check   { background: var(--green); border-color: var(--green); color: white; }
+    .estudio-row.locked                { cursor: not-allowed; opacity: 0.5; }
+
+    .row-check {
+      flex-shrink: 0;
+      width: 18px; height: 18px;
+      border: 1.5px solid var(--border);
+      border-radius: 4px;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      transition: background 0.12s, border-color 0.12s;
+    }
+
+    .row-cat {
+      flex-shrink: 0;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--muted);
+      min-width: 90px;
+      letter-spacing: 0.3px;
+    }
+
+    .row-clave {
+      flex-shrink: 0;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--muted);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      white-space: nowrap;
+    }
+
+    .row-nombre {
+      flex: 1;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .row-precio {
+      flex-shrink: 0;
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .estudios-empty {
+      text-align: center;
+      padding: 24px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .estudios-count-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0 8px;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    /* â”€â”€ SUMMARY BAR â”€â”€ */
+    #dashboard-nueva-orden-root .summary {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    #dashboard-nueva-orden-root .summary-items { display: flex; gap: 28px; flex-wrap: wrap; }
+
+    #dashboard-nueva-orden-root .summary-item { display: flex; flex-direction: column; }
+    #dashboard-nueva-orden-root .summary-item .lbl { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; }
+    #dashboard-nueva-orden-root .summary-item .val { font-size: 20px; font-weight: 800; color: var(--text); }
+    #dashboard-nueva-orden-root .summary-item .val.green { color: var(--green); }
+
+    /* â”€â”€ BUTTONS â”€â”€ */
+    #dashboard-nueva-orden-root .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 10px 18px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 700;
+      font-family: inherit;
+      border: none;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s, opacity 0.2s;
+      white-space: nowrap;
+    }
+    #dashboard-nueva-orden-root .btn:active { transform: scale(0.97); }
+    #dashboard-nueva-orden-root .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    #dashboard-nueva-orden-root .btn-primary { background: var(--green); color: white; }
+    #dashboard-nueva-orden-root .btn-primary:hover:not(:disabled) { background: var(--green-dark); }
+    #dashboard-nueva-orden-root .btn-secondary { background: var(--blue); color: white; }
+    #dashboard-nueva-orden-root .btn-secondary:hover:not(:disabled) { background: #2980b9; }
+    #dashboard-nueva-orden-root .btn-ghost { background: transparent; color: var(--muted); border: 1.5px solid var(--border); }
+    #dashboard-nueva-orden-root .btn-ghost:hover:not(:disabled) { background: var(--bg); color: var(--text); }
+    #dashboard-nueva-orden-root .btn-danger { background: var(--red); color: white; }
+    #dashboard-nueva-orden-root .btn-danger:hover:not(:disabled) { background: var(--red-dark); }
+    #dashboard-nueva-orden-root .btn-yellow { background: var(--yellow); color: white; }
+    #dashboard-nueva-orden-root .btn-yellow:hover:not(:disabled) { background: #d68910; }
+
+    /* â”€â”€ STATUS MSG â”€â”€ */
+    #dashboard-nueva-orden-root #status {
+      font-size: 13px;
+      font-weight: 600;
+      min-height: 20px;
+      padding: 10px 16px;
+      border-radius: var(--radius-sm);
+      display: none;
+    }
+    #dashboard-nueva-orden-root #status.error   { display: block; background: #fdedec; color: var(--red); border: 1px solid #f5b7b1; }
+    #dashboard-nueva-orden-root #status.success { display: block; background: var(--green-bg); color: var(--green-dark); border: 1px solid #a9dfbf; }
+
+    /* â”€â”€ READONLY OVERLAY â”€â”€ */
+    #dashboard-nueva-orden-root .readonly-notice {
+      background: #fef9e7;
+      border: 1px solid #f9e79f;
+      border-radius: var(--radius-sm);
+      padding: 10px 16px;
+      font-size: 13px;
+      color: #7d6608;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    /* â”€â”€ EDIT STATUS SELECT â”€â”€ */
+    #dashboard-nueva-orden-root .status-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    /* â”€â”€ DIVIDER â”€â”€ */
+    #dashboard-nueva-orden-root .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 16px 0;
+    }
+
+    /* â”€â”€ EMPTY STATE â”€â”€ */
+    #dashboard-nueva-orden-root .empty-state {
+      text-align: center;
+      padding: 32px 20px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    #dashboard-nueva-orden-root .empty-state .icon { font-size: 36px; margin-bottom: 10px; }
+
+    /* â”€â”€ SECTION LABEL â”€â”€ */
+    #dashboard-nueva-orden-root .section-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    /* â”€â”€ TOAST â”€â”€ */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      background: #1a202c;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.3s, transform 0.3s;
+      pointer-events: none;
+      z-index: 9999;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+
+    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+       TICKET TÃ‰RMICO â€” Sewoo SLK-T213EB (80mm, 203 DPI)
+       â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+       Especificaciones del modelo:
+         Â· Papel: 80mm ancho, Ã¡rea imprimible ~72mm
+         Â· ResoluciÃ³n: 203 DPI horizontal y vertical
+         Â· Velocidad: hasta 250mm/s
+         Â· Cortador automÃ¡tico (parcial/total)
+         Â· Fuente interna: 12Ã—24 dots â†’ ~42 chars/lÃ­nea a 9pt
+         Â· Sin driver especÃ­fico en muchos sistemas â†’ imprime via
+           diÃ¡logo del navegador con perfil de papel personalizado
+       â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+       IMPORTANTE para configurar en el navegador:
+         TamaÃ±o de papel: 80mm Ã— 297mm (o "Sin mÃ¡rgenes")
+         MÃ¡rgenes: Ninguno / 0
+         Escala: 100%
+         Cabecera/pie de pÃ¡gina: desactivados
+    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+
+    /* â”€â”€ PRINT LAYOUT: ocultar toda la UI, mostrar solo el ticket â”€â”€ */
+    @media print {
+      /* PÃ¡gina exacta al ancho del papel tÃ©rmico */
+      @page {
+        size: 80mm auto;   /* alto automÃ¡tico segÃºn contenido */
+        margin: 0;
+      }
+
+      body > * { display: none !important; }
+
+      #ticket-print {
+        display: block !important;
+        position: static !important;
+        width: 72mm !important;
+        min-width: 72mm !important;
+        max-width: 72mm !important;
+        margin: 0 !important;
+        padding: 2mm 0 8mm 0 !important;
+        background: #fff !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      /* B/N puro â€” papel tÃ©rmico no reproduce grises con fidelidad */
+      * {
+        color: #000 !important;
+        background: #fff !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      /* Evitar cortes de pÃ¡gina dentro del ticket */
+      #ticket-print * {
+        page-break-inside: avoid;
+      }
+    }
+
+    /* â”€â”€ CONTENEDOR BASE (preview en pantalla + base para print) â”€â”€ */
+    #ticket-print {
+      display: none;
+      /*
+        Courier New 9pt â†’ ~42 chars/lÃ­nea en 72mm @ 203dpi
+        Es la fuente de mayor fidelidad con la fuente interna
+        12Ã—24 dots de la Sewoo SLK-T213EB.
+      */
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 9pt;
+      line-height: 1.4;
+
+      /*
+        72mm = 80mm papel âˆ’ 4mm margen izq âˆ’ 4mm margen der
+        La Sewoo SLK-T213EB tiene un Ã¡rea mÃ¡xima de 72mm.
+        En px: 72mm Ã— (96px/25.4mm) â‰ˆ 272px para preview.
+      */
+      width: 72mm;
+      max-width: 72mm;
+      margin: 0 auto;
+
+      /*
+        top/bottom: 2mm Â· left/right: 0 (los 4mm de margen
+        fÃ­sico los gestiona el firmware de la impresora).
+        bottom extra: 8mm para no quedar atrapado en el
+        cortador parcial de la SLK-T213EB.
+      */
+      padding: 2mm 0 8mm 0;
+
+      background: #fff;
+      color: #000;
+
+      /* Overflow hidden evita que contenido sobresalga del ancho */
+      overflow: hidden;
+      word-break: break-word;
+      word-wrap: break-word;
+    }
+
+    /* â”€â”€ LOGO â”€â”€ */
+    /*
+      203 DPI: 1mm â‰ˆ 8 puntos.
+      Logo ancho mÃ¡ximo recomendado: 512px (â‰ˆ64mm) para no pixelar.
+      Si el logo tiene fondo blanco, la SLK-T213EB lo respeta bien.
+    */
+    #ticket-print .ticket-logo-wrap {
+      text-align: center;
+      margin-bottom: 3px;
+    }
+    #ticket-print .ticket-logo-wrap img {
+      width: 180px;           /* â‰ˆ22.5mm @ 203dpi â€” ajusta a tu logo */
+      max-height: 56px;
+      object-fit: contain;
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
+    }
+
+    /* â”€â”€ ENCABEZADO DE EMPRESA â”€â”€ */
+    #ticket-print .ticket-header {
+      text-align: center;
+      margin-bottom: 4px;
+    }
+    #ticket-print .ticket-header h2 {
+      font-size: 11pt;        /* ~15px â†’ negrita legible en 203dpi */
+      font-weight: bold;
+      margin-bottom: 1px;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+    #ticket-print .ticket-header p {
+      font-size: 7.5pt;       /* datos secundarios mÃ¡s pequeÃ±os */
+      margin: 0;
+      line-height: 1.3;
+    }
+
+    /* â”€â”€ FOLIO (solo en ticket de orden, no en cotizaciÃ³n) â”€â”€ */
+    #ticket-print .ticket-folio {
+      text-align: center;
+      font-size: 10pt;
+      font-weight: bold;
+      letter-spacing: 0.8px;
+      margin: 4px 0;
+      border-top: 1px solid #000;
+      border-bottom: 1px solid #000;
+      padding: 2px 0;
+    }
+
+    /* â”€â”€ SEPARADOR PUNTEADO â”€â”€ */
+    /*
+      La SLK-T213EB imprime dashes ASCII mejor que borders CSS.
+      Usamos border-top dashed como fallback visual; el
+      firmware los interpreta correctamente vÃ­a driver USB/Serial.
+    */
+    #ticket-print .ticket-sep {
+      border: none;
+      border-top: 1px dashed #000;
+      margin: 3px 0;
+      width: 100%;
+    }
+
+    /* â”€â”€ PARES CLAVE-VALOR (fecha, mÃ©dico, pacienteâ€¦) â”€â”€ */
+    #ticket-print .ticket-kv {
+      font-size: 8pt;
+      margin-bottom: 1.5px;
+      display: flex;
+      gap: 3px;
+      align-items: baseline;
+    }
+    #ticket-print .ticket-kv .k {
+      font-weight: bold;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    #ticket-print .ticket-kv .v {
+      flex: 1;
+      overflow: hidden;
+      /* text-overflow no aplica en flex wrap; word-break cubre el caso */
+      word-break: break-word;
+    }
+
+    /* â”€â”€ FILA DE ESTUDIO (nombre + precio) â”€â”€ */
+    /*
+      La SLK-T213EB tiene ~42 chars/lÃ­nea a 9pt Courier.
+      Nombres largos se quiebran en segunda lÃ­nea automÃ¡ticamente.
+      Precio siempre en la misma lÃ­nea que la Ãºltima del nombre.
+    */
+    #ticket-print .ticket-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 4px;
+      margin-bottom: 2px;
+      font-size: 8.5pt;
+      line-height: 1.35;
+    }
+    #ticket-print .ticket-row .estudio-name {
+      flex: 1;
+      word-break: break-word;
+    }
+    #ticket-print .ticket-row .estudio-price {
+      white-space: nowrap;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+    #ticket-print .ticket-indicaciones {
+      margin-top: 6px;
+      font-size: 7.5pt;
+      line-height: 1.35;
+    }
+    #ticket-print .ticket-indicaciones-title {
+      font-size: 8pt;
+      font-weight: bold;
+      margin-bottom: 3px;
+      letter-spacing: 0.4px;
+    }
+    #ticket-print .ticket-indicacion {
+      margin-bottom: 2px;
+      word-break: break-word;
+    }
+
+    /* â”€â”€ TOTAL â”€â”€ */
+    /*
+      11pt bold en Courier â†’ ~15 dots de alto @ 203dpi.
+      Bien visible incluso en papel de baja calidad.
+    */
+    #ticket-print .ticket-total {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11pt;
+      font-weight: bold;
+      margin-top: 2px;
+      padding-top: 1px;
+    }
+
+    /* â”€â”€ PIE DE TICKET â”€â”€ */
+    #ticket-print .ticket-footer {
+      text-align: center;
+      font-size: 7pt;          /* mÃ­nimo legible a 203dpi en papel 80mm */
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+
+    /* â”€â”€ TIPO DE DOCUMENTO (COTIZACIÃ“N / ORDEN) â”€â”€ */
+    #ticket-print .ticket-doctype {
+      text-align: center;
+      font-size: 9pt;
+      font-weight: bold;
+      letter-spacing: 1px;
+      margin: 3px 0 1px;
+      text-transform: uppercase;
+    }
+
+    /* â”€â”€ RESPONSIVE â”€â”€ */
+    @media (max-width: 600px) {
+      .nueva-orden-page { padding: 16px; }
+      .topbar { gap: 8px; }
+      .tabs { width: 100%; }
+      .tab-btn { flex: 1; text-align: center; }
+    }
+

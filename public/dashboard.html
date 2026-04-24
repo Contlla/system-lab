@@ -1,0 +1,4575 @@
+﻿<!DOCTYPE html>
+
+<html lang="es">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <meta http-equiv="Content-Security-Policy"
+
+        content="default-src 'self'; script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-src 'self';">
+
+  <title>SIS Laboratorio</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+
+      --sidebar-w:  240px;
+
+      --topbar-h:   56px;
+
+      --green:      #2ecc71;
+
+      --green-dark: #27ae60;
+
+      --green-bg:   #eafaf1;
+
+      --red:        #e74c3c;
+
+      --red-dark:   #c0392b;
+
+      --blue:       #3498db;
+
+      --blue-bg:    #eaf3fb;
+
+      --yellow-bg:  #fef9e7;
+
+      --sidebar-bg: #111827;
+
+      --bg:         #f0f2f5;
+
+      --surface:    #ffffff;
+
+      --border:     #e2e8f0;
+
+      --text:       #1a202c;
+
+      --muted:      #718096;
+
+      --shadow:     0 4px 16px rgba(0,0,0,0.08);
+
+      --shadow-sm:  0 1px 3px rgba(0,0,0,0.08);
+
+      --radius:     12px;
+
+      --radius-sm:  8px;
+
+    }
+
+    html, body { height: 100%; overflow: hidden; }
+
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--text); display: flex; }
+
+
+
+    /* ── SIDEBAR ── */
+
+    #sidebar {
+
+      width: var(--sidebar-w); background: var(--sidebar-bg);
+
+      height: 100vh; display: flex; flex-direction: column;
+
+      flex-shrink: 0; overflow-y: auto; overflow-x: hidden;
+
+      position: fixed; left: 0; top: 0; bottom: 0; z-index: 100;
+
+    }
+
+    #sidebar::-webkit-scrollbar { width: 4px; }
+
+    #sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
+
+
+
+    .sidebar-brand {
+
+      display: flex; align-items: center; gap: 10px;
+
+      padding: 18px 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.07);
+
+    }
+
+    .sidebar-brand-icon {
+
+      width: 34px; height: 34px; background: var(--green); border-radius: 9px;
+
+      display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0;
+
+      overflow: hidden; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+
+    }
+
+    .sidebar-brand-icon img { display: block; }
+
+    .sidebar-brand-name { font-size: 13px; font-weight: 800; color: white; letter-spacing: -0.3px; line-height: 1.2; }
+
+    .sidebar-brand-sub  { font-size: 10px; color: rgba(255,255,255,0.4); font-weight: 500; }
+
+
+
+    .sidebar-user {
+
+      display: flex; align-items: center; gap: 10px;
+
+      padding: 12px 20px; border-bottom: 1px solid rgba(255,255,255,0.07);
+
+    }
+
+    .sidebar-avatar {
+
+      width: 30px; height: 30px; border-radius: 50%;
+
+      background: rgba(46,204,113,0.2); border: 1.5px solid rgba(46,204,113,0.4);
+
+      display: flex; align-items: center; justify-content: center;
+
+      font-size: 13px; font-weight: 700; color: var(--green); flex-shrink: 0;
+
+    }
+
+    .sidebar-username { font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.85); }
+
+    .sidebar-role     { font-size: 10px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px; }
+
+
+
+    .sidebar-section-label {
+
+      font-size: 9px; font-weight: 800; letter-spacing: 1px;
+
+      text-transform: uppercase; color: rgba(255,255,255,0.28);
+
+      padding: 16px 20px 5px;
+
+    }
+
+    .nav-item {
+
+      display: flex; align-items: center; gap: 10px;
+
+      padding: 9px 12px; margin: 1px 8px; border-radius: 8px;
+
+      cursor: pointer; color: rgba(255,255,255,0.55);
+
+      font-size: 13px; font-weight: 600;
+
+      transition: background 0.15s, color 0.15s; user-select: none;
+
+    }
+
+    .nav-item:hover  { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.9); }
+
+    .nav-item.active { background: rgba(46,204,113,0.18); color: var(--green); }
+
+    .nav-icon { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+
+
+
+    .sidebar-footer { margin-top: auto; padding: 12px 8px; border-top: 1px solid rgba(255,255,255,0.07); }
+
+    .btn-logout-side {
+
+      display: flex; align-items: center; gap: 10px;
+
+      width: 100%; padding: 9px 12px; border-radius: 8px;
+
+      background: none; border: none; cursor: pointer;
+
+      color: rgba(255,255,255,0.4); font-size: 13px; font-weight: 600;
+
+      font-family: inherit; transition: background 0.15s, color 0.15s;
+
+    }
+
+    .btn-logout-side:hover { background: rgba(231,76,60,0.15); color: #e74c3c; }
+
+
+
+    /* ── MAIN ── */
+
+    #main { margin-left: var(--sidebar-w); flex: 1; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+
+
+    #topbar {
+
+      height: var(--topbar-h); background: var(--surface);
+
+      border-bottom: 1px solid var(--border);
+
+      display: flex; align-items: center; justify-content: space-between;
+
+      padding: 0 24px; flex-shrink: 0; box-shadow: var(--shadow-sm);
+
+    }
+
+    .topbar-title    { font-size: 15px; font-weight: 800; }
+
+    .topbar-breadcrumb { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+
+
+
+    #content-area { flex: 1; overflow-y: auto; padding: 24px; }
+
+    #content-area::-webkit-scrollbar { width: 6px; }
+
+    #content-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+
+
+    .view { display: none; }
+
+    .view.active { display: block; }
+
+    .view-embed {
+
+      height: calc(100vh - var(--topbar-h) - 48px);
+
+      min-height: 720px;
+
+    }
+
+    .embedded-page {
+
+      display: flex;
+
+      flex-direction: column;
+
+      height: 100%;
+
+      background: var(--surface);
+
+      border-radius: var(--radius);
+
+      box-shadow: var(--shadow);
+
+      overflow: hidden;
+
+    }
+
+    .embedded-page-bar {
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: space-between;
+
+      gap: 12px;
+
+      padding: 12px 16px;
+
+      border-bottom: 1px solid var(--border);
+
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+
+    }
+
+    .embedded-page-meta {
+
+      min-width: 0;
+
+    }
+
+    .embedded-page-title {
+
+      font-size: 13px;
+
+      font-weight: 800;
+
+      color: var(--text);
+
+    }
+
+    .embedded-page-sub {
+
+      font-size: 11px;
+
+      color: var(--muted);
+
+      margin-top: 2px;
+
+    }
+
+    .embedded-page-frame {
+
+      width: 100%;
+
+      flex: 1;
+
+      border: none;
+
+      background: white;
+
+    }
+
+    @media (max-width: 768px) {
+
+      .view-embed {
+
+        height: calc(100vh - var(--topbar-h) - 32px);
+
+        min-height: 560px;
+
+      }
+
+      .embedded-page-bar {
+
+        padding: 10px 12px;
+
+      }
+
+    }
+
+
+
+    /* ── SHARED ── */
+
+    .card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+
+    .card-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 8px; }
+
+    .card-title { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 7px; }
+
+    .card-body  { padding: 16px 18px; }
+
+
+
+    .btn {
+
+      display: inline-flex; align-items: center; gap: 6px;
+
+      padding: 9px 16px; border-radius: var(--radius-sm);
+
+      font-size: 13px; font-weight: 700; font-family: inherit;
+
+      border: none; cursor: pointer; transition: background 0.2s, transform 0.12s, opacity 0.2s;
+
+      white-space: nowrap; text-decoration: none;
+
+    }
+
+    .btn:active { transform: scale(0.97); }
+
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-primary   { background: var(--green); color: white; }
+
+    .btn-primary:hover:not(:disabled) { background: var(--green-dark); }
+
+    .btn-secondary { background: var(--blue); color: white; }
+
+    .btn-secondary:hover:not(:disabled) { background: #2980b9; }
+
+    .btn-ghost { background: transparent; color: var(--muted); border: 1.5px solid var(--border); }
+
+    .btn-ghost:hover:not(:disabled) { background: var(--bg); color: var(--text); }
+
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+
+
+    .search-wrap { position: relative; }
+
+    .search-wrap svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; fill: var(--muted); pointer-events: none; }
+
+    .search-input { width: 100%; padding: 9px 12px 9px 34px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-family: inherit; background: var(--bg); outline: none; color: var(--text); transition: border-color 0.2s, box-shadow 0.2s; }
+
+    .search-input:focus { border-color: var(--green); background: white; box-shadow: 0 0 0 3px rgba(46,204,113,0.12); }
+
+    .search-input::placeholder { color: #a0aec0; }
+
+
+
+    .spinner { width: 22px; height: 22px; border: 3px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 28px auto; display: block; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+
+
+    .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 16px; gap: 10px; color: var(--muted); font-size: 13px; text-align: center; }
+
+    .empty-state .icon { font-size: 40px; }
+
+
+
+    .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 20px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; }
+
+    .badge-pendiente  { background: var(--yellow-bg); color: #9a7d0a; border: 1px solid #f9e79f; }
+
+    .badge-en_proceso { background: var(--blue-bg);   color: #1a5276; border: 1px solid #aed6f1; }
+
+    .badge-completado { background: var(--green-bg);  color: #1e8449; border: 1px solid #a9dfbf; }
+
+    .badge-cancelado  { background: #fdedec; color: var(--red); border: 1px solid #f5b7b1; }
+
+
+
+    .usr-table { width:100%; border-collapse:collapse; }
+
+    .usr-table th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); padding:10px 12px; border-bottom:1px solid var(--border); }
+
+    .usr-table td { padding:12px; border-bottom:1px solid #eef2f7; font-size:13px; vertical-align:top; }
+
+    .usr-table tr:last-child td { border-bottom:none; }
+
+    .usr-table tr[data-selected="true"] { background:#f0faf5; }
+
+    .usr-role-pill { display:inline-flex; align-items:center; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:800; background:#eef6ff; color:#1d4f91; }
+
+    .usr-perm-tag { display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; font-size:10px; font-weight:700; background:#eef2f7; color:#475569; margin:2px 4px 0 0; }
+
+    .usr-perm-option { display:flex; align-items:flex-start; gap:8px; padding:8px 10px; border-radius:10px; background:white; border:1px solid #e5e7eb; }
+
+    .usr-perm-option input { margin-top:2px; }
+
+    .usr-perm-name { font-size:12px; font-weight:700; color:var(--text); }
+
+    .usr-perm-code { font-size:11px; color:var(--muted); margin-top:2px; font-family:'DM Mono', monospace; }
+
+
+
+    #toast { position: fixed; bottom: 24px; right: 24px; background: #1a202c; color: white; padding: 11px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; opacity: 0; transform: translateY(8px); transition: opacity 0.25s, transform 0.25s; pointer-events: none; z-index: 9999; }
+
+    #toast.show { opacity: 1; transform: translateY(0); }
+
+
+
+    /* ── VIEW INICIO ── */
+
+    .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 22px; }
+
+    .metric-card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px 20px; }
+
+    .metric-label { font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 5px; }
+
+    .metric-value { font-size: 30px; font-weight: 800; color: var(--green); }
+
+    .dash-table-wrap { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+
+    .dash-table { width: 100%; border-collapse: collapse; }
+
+    .dash-table th { background: var(--green); color: white; padding: 10px 14px; font-size: 11px; font-weight: 700; text-align: left; text-transform: uppercase; letter-spacing: 0.4px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+    .dash-table td { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid #f8f9fa; }
+
+    .dash-table tbody tr:last-child td { border-bottom: none; }
+
+    .dash-table tbody tr:hover { background: #f8fffe; }
+
+    .dash-table tbody tr[style*="cursor"] { transition: background 0.12s; }
+
+    .dash-table tbody tr[style*="cursor"]:hover { background: #eafaf1; }
+
+
+
+    /* ── VIEW RESULTADOS ── */
+
+    .two-col { display: grid; grid-template-columns: 330px 1fr; gap: 18px; align-items: start; }
+
+    @media (max-width: 860px) { .two-col { grid-template-columns: 1fr; } }
+
+
+
+    .patient-list { display: flex; flex-direction: column; gap: 5px; max-height: 60vh; overflow-y: auto; margin-top: 10px; }
+
+    .patient-list::-webkit-scrollbar { width: 4px; }
+
+    .patient-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+    .patient-row { padding: 10px 13px; border-radius: var(--radius-sm); border: 1.5px solid transparent; cursor: pointer; background: var(--bg); transition: background 0.12s, border-color 0.12s; display: flex; flex-direction: column; gap: 3px; }
+
+    .patient-row:hover  { background: #f0faf5; border-color: #a9dfbf; }
+
+    .patient-row.active { background: var(--green-bg); border-color: var(--green); }
+
+    .p-name  { font-size: 13px; font-weight: 700; }
+
+    .p-meta  { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    .p-folio { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
+
+    .p-date  { font-size: 11px; color: var(--muted); }
+
+
+
+    .right-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 280px; color: var(--muted); font-size: 14px; gap: 10px; }
+
+    .big-icon { font-size: 44px; }
+
+
+
+    .orden-info { display: flex; gap: 16px; flex-wrap: wrap; padding: 12px 16px; background: #f8fafc; border-bottom: 1px solid var(--border); font-size: 12px; }
+
+    .inf-item { display: flex; flex-direction: column; gap: 1px; }
+
+    .inf-lbl  { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); }
+
+    .inf-val  { font-weight: 600; }
+
+    .inf-folio { font-family: 'DM Mono', monospace; font-size: 11px; }
+
+
+
+    .resultados-grid { padding: 14px 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+
+    .resultado-card { border: 1.5px solid var(--green); border-radius: 10px; background: var(--green-bg); overflow: hidden; }
+
+    .resultado-card-head { padding: 9px 13px; border-bottom: 1px solid #a9dfbf; background: white; }
+
+    .resultado-card-cat  { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); }
+
+    .resultado-card-nombre { font-size: 13px; font-weight: 700; }
+
+    .resultado-card-body { padding: 9px 13px; display: flex; align-items: center; gap: 9px; }
+
+    .resultado-card-icon { font-size: 24px; flex-shrink: 0; }
+
+    .resultado-card-info { flex: 1; min-width: 0; }
+
+    .resultado-card-filename { font-size: 11px; font-weight: 600; color: var(--green-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .resultado-card-actions { display: flex; gap: 5px; margin-top: 6px; }
+
+    .btn-file { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: 6px; font-size: 11px; font-weight: 700; font-family: inherit; border: none; cursor: pointer; text-decoration: none; transition: background 0.15s; }
+
+    .btn-ver  { background: var(--blue-bg); color: #1a5276; border: 1px solid #aed6f1; }
+
+    .btn-ver:hover  { background: #d6eaf8; }
+
+    .btn-dl   { background: var(--green-bg); color: var(--green-dark); border: 1px solid #a9dfbf; }
+
+    .btn-dl:hover   { background: #d5f5e3; }
+
+
+
+    /* ── VIEW PROFORMA ── */
+
+    .pf-search-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 18px; }
+
+    .field-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 200px; }
+
+    .field-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+
+    .field-input { padding: 9px 13px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-family: inherit; outline: none; background: var(--bg); color: var(--text); transition: border-color 0.2s; }
+
+    .field-input:focus { border-color: var(--green); background: white; box-shadow: 0 0 0 3px rgba(46,204,113,0.12); }
+
+    .field-input::placeholder { color: #a0aec0; }
+
+
+
+    .pf-copy { background: white; }
+
+
+
+    #pf-doc { background: white; border-radius: var(--radius); box-shadow: var(--shadow); padding: 40px 44px; max-width: 820px; }
+
+    .pf-header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 18px; border-bottom: 2px solid var(--green); margin-bottom: 22px; gap: 16px; flex-wrap: wrap; }
+
+    .pf-logo-box { width: 50px; height: 50px; border-radius: 10px; background: var(--green-bg); border: 1.5px solid #a9dfbf; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+
+    .pf-emp-name { font-size: 17px; font-weight: 800; }
+
+    .pf-emp-sub  { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    .pf-doc-title { font-size: 22px; font-weight: 800; color: var(--green-dark); text-transform: uppercase; letter-spacing: -0.5px; }
+
+    .pf-folio { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+    .pf-fecha { font-size: 11px; color: var(--muted); }
+
+    .pf-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+
+    @media (max-width: 600px) { .pf-info-grid { grid-template-columns: 1fr; } }
+
+    .pf-info-box  { background: #f8fafc; border-radius: 9px; padding: 13px 15px; border: 1px solid var(--border); }
+
+    .pf-box-title { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--green-dark); margin-bottom: 8px; }
+
+    .pf-row { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+
+    .pf-key { font-size: 11px; color: var(--muted); }
+
+    .pf-val { font-size: 11px; font-weight: 700; text-align: right; }
+
+    .pf-table-wrap { border: 1.5px solid var(--border); border-radius: 9px; overflow: hidden; margin-bottom: 16px; }
+
+    .pf-table { width: 100%; border-collapse: collapse; }
+
+    .pf-table thead tr { background: var(--green); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+    .pf-table th { padding: 9px 13px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: white; text-align: left; }
+
+    .pf-table th:last-child { text-align: right; }
+
+    .pf-table td { padding: 9px 13px; font-size: 12px; border-bottom: 1px solid #f0f4f8; }
+
+    .pf-table td:last-child { text-align: right; font-weight: 600; }
+
+    .pf-table tbody tr:last-child td { border-bottom: none; }
+
+    .pf-cat-tag { font-size: 9px; font-weight: 700; text-transform: uppercase; background: var(--green-bg); color: var(--green-dark); padding: 1px 6px; border-radius: 4px; display: inline-block; margin-bottom: 2px; }
+
+    .pf-totales { display: flex; justify-content: flex-end; margin-bottom: 20px; }
+
+    .pf-totales-box { min-width: 230px; border: 1.5px solid var(--border); border-radius: 9px; overflow: hidden; }
+
+    .pf-total-row { display: flex; justify-content: space-between; padding: 8px 14px; font-size: 12px; border-bottom: 1px solid var(--border); }
+
+    .pf-total-row:last-child { border-bottom: none; }
+
+    .pf-total-row.hi { background: var(--green); color: white; font-weight: 800; font-size: 14px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+    .pf-total-row.pa { background: var(--green-bg); }
+
+    .pf-total-row.sa { background: #fff9e6; }
+
+    .pf-total-key { font-weight: 500; }
+
+    .pf-total-val { font-family: 'DM Mono', monospace; font-weight: 700; }
+
+    .pf-footer { border-top: 1px solid var(--border); padding-top: 16px; display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+
+    .pf-footer-note { font-size: 10px; color: var(--muted); line-height: 1.6; max-width: 280px; }
+
+    .pf-firma-line  { width: 160px; border-bottom: 1.5px solid var(--text); margin-bottom: 5px; }
+
+    .pf-firma-label { font-size: 10px; color: var(--muted); font-weight: 600; }
+
+
+
+        /* Separador de copias para impresion 2 en 1 */
+
+    .pf-copy-divider {
+
+      border: none; border-top: 2px dashed #b0b0b0;
+
+      margin: 22px 0; position: relative;
+
+    }
+
+    .pf-copy-divider::before {
+
+      content: '\2702';
+
+      position: absolute; top: -10px; left: 8px;
+
+      background: white; padding: 0 6px;
+
+      font-size: 14px; color: #888;
+
+    }
+
+    .pf-copy-divider::after {
+
+      content: 'RECORTAR AQUI - Copia para el paciente';
+
+      position: absolute; top: -9px; left: 50%;
+
+      transform: translateX(-50%);
+
+      background: white; padding: 0 12px;
+
+      font-size: 9px; color: #999; font-weight: 800;
+
+      letter-spacing: 1px; text-transform: uppercase; white-space: nowrap;
+
+    }
+
+    /* Campo fecha entrega */
+
+    .pf-entrega-row {
+
+      display: flex; gap: 10px; align-items: flex-end;
+
+      flex-wrap: wrap; margin-top: 12px;
+
+      padding-top: 12px; border-top: 1px solid var(--border);
+
+    }
+
+    .pf-entrega-row .field-group { flex: 0 0 auto; min-width: 200px; }
+
+    .pf-entrega-hint {
+
+      font-size: 12px; color: var(--muted);
+
+      padding-bottom: 9px;
+
+    }
+
+    /* ── VIEWER MODAL ── */
+
+    #viewer-modal { display: none; position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,0.72); align-items: center; justify-content: center; }
+
+    #viewer-modal.open { display: flex; }
+
+    .viewer-box { background: white; border-radius: var(--radius); box-shadow: 0 20px 60px rgba(0,0,0,0.35); width: 90vw; max-width: 900px; height: 88vh; display: flex; flex-direction: column; overflow: hidden; }
+
+    .viewer-hd { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid var(--border); background: #f8fafc; flex-shrink: 0; }
+
+    .viewer-title { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%; }
+
+    .viewer-btns  { display: flex; gap: 8px; }
+
+    .btn-vclose { background: none; border: 1.5px solid var(--border); border-radius: 7px; padding: 5px 12px; font-size: 13px; font-weight: 700; cursor: pointer; color: var(--text); font-family: inherit; transition: background 0.15s; }
+
+    .btn-vclose:hover { background: #fdedec; color: var(--red); border-color: var(--red); }
+
+    .btn-vdl { background: var(--green); color: white; border: none; border-radius: 7px; padding: 6px 13px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; transition: background 0.2s; }
+
+    .btn-vdl:hover { background: var(--green-dark); }
+
+    .viewer-body { flex: 1; overflow: hidden; display: flex; }
+
+    .viewer-body iframe, .viewer-body img { width: 100%; height: 100%; border: none; display: block; }
+
+    .viewer-body img { object-fit: contain; background: #1a202c; }
+
+    .viewer-unsupported { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; width: 100%; color: var(--muted); font-size: 14px; text-align: center; padding: 32px; }
+
+
+
+    /* ── VIEW CATÁLOGO ── */
+
+    .cat-toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:18px; }
+
+    .cat-toolbar .search-wrap { flex:1; min-width:200px; }
+
+
+
+    .cat-chips { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+
+    .cat-chip {
+
+      padding:5px 13px; border-radius:20px; border:1.5px solid var(--border);
+
+      background:white; font-size:11px; font-weight:700; color:var(--muted);
+
+      cursor:pointer; font-family:inherit; transition:all 0.15s;
+
+    }
+
+    .cat-chip:hover { border-color:var(--green); color:var(--green-dark); }
+
+    .cat-chip.active { background:var(--green); border-color:var(--green); color:white; }
+
+
+
+    .estudios-table-wrap { background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
+
+    .estudios-table { width:100%; border-collapse:collapse; }
+
+    .estudios-table th { background:var(--green); color:white; padding:10px 14px; font-size:11px; font-weight:700; text-align:left; text-transform:uppercase; letter-spacing:0.4px; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+
+    .estudios-table td { padding:10px 14px; font-size:13px; border-bottom:1px solid #f0f4f8; vertical-align:middle; }
+
+    .estudios-table tbody tr:last-child td { border-bottom:none; }
+
+    .estudios-table tbody tr:hover { background:#f8fffe; }
+
+
+
+    .cat-pill {
+
+      display:inline-block; padding:2px 9px; border-radius:20px;
+
+      font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px;
+
+    }
+
+    .cat-BIOQUIMICA    { background:#eaf3fb; color:#1a5276; }
+
+    .cat-HEMATOLOGIA   { background:#fdedec; color:#922b21; }
+
+    .cat-INMUNOLOGIA   { background:#f5eef8; color:#6c3483; }
+
+    .cat-URONALISIS    { background:#fef9e7; color:#9a7d0a; }
+
+    .cat-MICROBIOLOGIA { background:#e8f8f5; color:#1e8449; }
+
+    .cat-OTROS         { background:#f0f2f5; color:#4a5568; }
+
+
+
+    .actions-cell { display:flex; gap:6px; }
+
+
+
+    /* ── MODAL ── */
+
+    .modal-overlay {
+
+      display:none; position:fixed; inset:0; z-index:2000;
+
+      background:rgba(0,0,0,0.55); align-items:center; justify-content:center;
+
+      padding:20px;
+
+    }
+
+    .modal-overlay.open { display:flex; }
+
+    .modal-box {
+
+      background:white; border-radius:var(--radius); box-shadow:0 20px 60px rgba(0,0,0,0.25);
+
+      width:100%; max-width:440px; padding:28px; position:relative;
+
+      max-height:min(92vh, 900px); overflow-y:auto;
+
+      animation:modalIn 0.2s ease;
+
+    }
+
+    #modal-estudio .modal-box { max-width:520px; }
+
+    @keyframes modalIn { from { transform:translateY(16px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+
+    .modal-title { font-size:16px; font-weight:800; margin-bottom:20px; display:flex; align-items:center; gap:8px; }
+
+    .modal-close {
+
+      position:absolute; top:14px; right:14px; background:none; border:none;
+
+      font-size:18px; cursor:pointer; color:var(--muted); line-height:1;
+
+      padding:4px 8px; border-radius:6px; transition:background 0.15s;
+
+    }
+
+    .modal-close:hover { background:var(--bg); color:var(--text); }
+
+
+
+    .form-field { display:flex; flex-direction:column; gap:5px; margin-bottom:14px; }
+
+    .form-field label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); }
+
+    .form-field input, .form-field select {
+
+      padding:10px 12px; border:1.5px solid var(--border); border-radius:var(--radius-sm);
+
+      font-size:14px; font-family:inherit; outline:none; background:var(--bg); color:var(--text);
+
+      transition:border-color 0.2s, box-shadow 0.2s;
+
+    }
+
+    .form-field input:focus, .form-field select:focus {
+
+      border-color:var(--green); background:white; box-shadow:0 0 0 3px rgba(46,204,113,0.12);
+
+    }
+
+    .modal-err { font-size:12px; color:var(--red); font-weight:600; margin-bottom:12px; display:none; padding:8px 12px; background:#fdedec; border-radius:6px; border:1px solid #f5b7b1; }
+
+    .modal-footer { display:flex; gap:8px; justify-content:flex-end; margin-top:20px; }
+
+
+
+    /* confirm modal */
+
+    .confirm-msg { font-size:14px; color:var(--text); line-height:1.6; margin-bottom:6px; }
+
+    .confirm-sub { font-size:12px; color:var(--muted); }
+
+    .btn-danger { background:#e74c3c; color:white; }
+
+    .btn-danger:hover:not(:disabled) { background:#c0392b; }
+
+
+
+
+
+    /* ══════════════════════════════════════
+
+       AGENDA STYLES
+
+    ══════════════════════════════════════ */
+
+    .ag-toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:16px; }
+
+    .ag-toolbar .ag-spacer { flex:1; }
+
+
+
+    /* Nav de fecha */
+
+    .ag-date-nav { display:flex; align-items:center; gap:8px; background:var(--surface); border:1.5px solid var(--border); border-radius:var(--radius-sm); padding:4px 6px; }
+
+    .ag-date-nav button { background:none; border:none; cursor:pointer; padding:4px 8px; border-radius:6px; font-size:15px; color:var(--muted); transition:background 0.15s; }
+
+    .ag-date-nav button:hover { background:var(--bg); color:var(--text); }
+
+    .ag-date-label { font-size:13px; font-weight:700; min-width:160px; text-align:center; }
+
+    .ag-date-input { border:none; background:transparent; font-family:inherit; font-size:13px; font-weight:700; color:var(--text); cursor:pointer; outline:none; width:1px; opacity:0; position:absolute; }
+
+
+
+    /* Filtros sucursal/técnico */
+
+    .ag-select { padding:8px 12px; border:1.5px solid var(--border); border-radius:var(--radius-sm); font-size:13px; font-family:inherit; background:var(--bg); color:var(--text); outline:none; cursor:pointer; transition:border-color 0.2s; }
+
+    .ag-select:focus { border-color:var(--green); background:white; }
+
+
+
+    /* Layout: timeline izquierda + sidebar derecha */
+
+    .ag-layout { display:grid; grid-template-columns:1fr 300px; gap:16px; align-items:start; }
+
+    @media (max-width:900px) { .ag-layout { grid-template-columns:1fr; } }
+
+
+
+    /* Timeline */
+
+    .ag-timeline { background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
+
+    .ag-tl-header { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid var(--border); }
+
+    .ag-tl-title { font-size:13px; font-weight:700; }
+
+    .ag-tl-legend { display:flex; gap:10px; }
+
+    .ag-legend-item { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--muted); font-weight:600; }
+
+    .ag-legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+
+
+
+    .ag-tl-body { padding:12px 16px; max-height:calc(100vh - 240px); overflow-y:auto; }
+
+    .ag-tl-body::-webkit-scrollbar { width:4px; }
+
+    .ag-tl-body::-webkit-scrollbar-thumb { background:var(--border); border-radius:99px; }
+
+
+
+    /* Slot de hora */
+
+    .ag-slot { display:flex; gap:10px; margin-bottom:2px; min-height:48px; }
+
+    .ag-slot-hour { width:44px; flex-shrink:0; font-size:10px; font-weight:700; color:var(--muted); padding-top:4px; font-family:'DM Mono',monospace; text-align:right; }
+
+    .ag-slot-line { flex:1; border-top:1px solid #f0f4f8; padding:3px 0; position:relative; }
+
+    .ag-slot-line.half { border-top:1px dashed #f0f4f8; }
+
+
+
+    /* Cita en timeline */
+
+    .ag-cita {
+
+      border-radius:8px; padding:6px 10px; margin-bottom:4px; cursor:pointer;
+
+      border-left:3px solid; transition:transform 0.12s, box-shadow 0.12s;
+
+      position:relative;
+
+    }
+
+    .ag-cita:hover { transform:translateX(2px); box-shadow:var(--shadow-sm); }
+
+    .ag-cita-programada  { background:#fef9e7; border-color:#f39c12; }
+
+    .ag-cita-confirmada  { background:#eaf3fb; border-color:#3498db; }
+
+    .ag-cita-en_curso    { background:#eafaf1; border-color:#2ecc71; }
+
+    .ag-cita-completada  { background:#f8f9fa; border-color:#95a5a6; }
+
+    .ag-cita-cancelada   { background:#fdedec; border-color:#e74c3c; opacity:0.6; }
+
+    .ag-cita-no_asistio  { background:#fdedec; border-color:#e74c3c; opacity:0.55; }
+
+
+
+    .ag-cita-top { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+
+    .ag-cita-hora { font-size:10px; font-weight:700; font-family:'DM Mono',monospace; color:var(--muted); }
+
+    .ag-cita-pac  { font-size:12px; font-weight:700; }
+
+    .ag-cita-est  { font-size:11px; color:var(--muted); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:320px; }
+
+    .ag-cita-badges { display:flex; gap:5px; margin-top:3px; flex-wrap:wrap; }
+
+
+
+    .ag-bloqueo {
+
+      border-radius:8px; padding:5px 10px; margin-bottom:4px;
+
+      background:repeating-linear-gradient(45deg,#f8f9fa,#f8f9fa 6px,#f0f2f5 6px,#f0f2f5 12px);
+
+      border:1px dashed #cbd5e0; display:flex; align-items:center; gap:8px;
+
+    }
+
+    .ag-bloqueo-txt { font-size:11px; font-weight:700; color:var(--muted); }
+
+
+
+    /* Sidebar derecha */
+
+    .ag-sidebar { display:flex; flex-direction:column; gap:14px; }
+
+
+
+    /* Mini resumen del día */
+
+    .ag-stats { background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px 16px; }
+
+    .ag-stats-title { font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px; }
+
+    .ag-stat-row { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid #f8f9fa; }
+
+    .ag-stat-row:last-child { border-bottom:none; }
+
+    .ag-stat-label { font-size:12px; font-weight:600; color:var(--muted); display:flex; align-items:center; gap:6px; }
+
+    .ag-stat-val { font-size:15px; font-weight:800; }
+
+
+
+    /* Lista de citas del sidebar */
+
+    .ag-list { background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
+
+    .ag-list-header { padding:12px 16px; border-bottom:1px solid var(--border); font-size:12px; font-weight:700; }
+
+    .ag-list-body { max-height:320px; overflow-y:auto; }
+
+    .ag-list-body::-webkit-scrollbar { width:4px; }
+
+    .ag-list-body::-webkit-scrollbar-thumb { background:var(--border); border-radius:99px; }
+
+    .ag-list-row { display:flex; flex-direction:column; gap:2px; padding:9px 14px; border-bottom:1px solid #f8f9fa; cursor:pointer; transition:background 0.12s; }
+
+    .ag-list-row:hover { background:var(--bg); }
+
+    .ag-list-row:last-child { border-bottom:none; }
+
+    .ag-list-pac { font-size:12px; font-weight:700; }
+
+    .ag-list-meta { display:flex; gap:8px; align-items:center; }
+
+    .ag-list-hora { font-size:10px; font-family:'DM Mono',monospace; font-weight:700; color:var(--muted); }
+
+
+
+    /* Estado pills */
+
+    .ag-pill { display:inline-block; padding:1px 7px; border-radius:20px; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; }
+
+    .ag-pill-programada { background:#fef9e7; color:#9a7d0a; border:1px solid #f9e79f; }
+
+    .ag-pill-confirmada { background:#eaf3fb; color:#1a5276; border:1px solid #aed6f1; }
+
+    .ag-pill-en_curso   { background:#eafaf1; color:#1e8449; border:1px solid #a9dfbf; }
+
+    .ag-pill-completada { background:#f8f9fa; color:#4a5568; border:1px solid #e2e8f0; }
+
+    .ag-pill-cancelada  { background:#fdedec; color:#922b21; border:1px solid #f5b7b1; }
+
+    .ag-pill-no_asistio { background:#fdedec; color:#922b21; border:1px solid #f5b7b1; }
+
+
+
+    /* Modal cita */
+
+    .mc-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+    .mc-full  { grid-column:1/-1; }
+
+    .mc-slots { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; max-height:180px; overflow-y:auto; }
+
+    .mc-slot-btn {
+
+      padding:5px 10px; border-radius:6px; border:1.5px solid var(--border);
+
+      background:var(--bg); font-size:11px; font-weight:700; font-family:'DM Mono',monospace;
+
+      color:var(--muted); cursor:pointer; transition:all 0.15s;
+
+    }
+
+    .mc-slot-btn:hover:not(:disabled) { border-color:var(--green); color:var(--green-dark); background:var(--green-bg); }
+
+    .mc-slot-btn.selected { background:var(--green); border-color:var(--green); color:white; }
+
+    .mc-slot-btn:disabled { opacity:0.35; cursor:not-allowed; text-decoration:line-through; }
+
+    .mc-slot-loading { font-size:12px; color:var(--muted); padding:8px 0; }
+
+
+
+    /* Modal detalle cita */
+
+    .cd-info { display:flex; flex-direction:column; gap:6px; margin-bottom:16px; }
+
+    .cd-row  { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; padding:5px 0; border-bottom:1px solid #f8f9fa; }
+
+    .cd-row:last-child { border-bottom:none; }
+
+    .cd-key  { font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; flex-shrink:0; }
+
+    .cd-val  { font-size:12px; font-weight:600; text-align:right; }
+
+    .cd-actions { display:flex; flex-wrap:wrap; gap:8px; }
+
+    .cd-estado-sel { padding:7px 10px; border:1.5px solid var(--border); border-radius:var(--radius-sm); font-size:12px; font-family:inherit; font-weight:600; outline:none; background:var(--bg); color:var(--text); cursor:pointer; }
+
+
+
+    /* ── PRINT ── */
+
+    @media print {
+
+      @page { size: A4 portrait; margin: 6mm 10mm; }
+
+      html, body { overflow: visible !important; height: auto !important; }
+
+      #sidebar, #topbar, .pf-search-row, .pf-entrega-row, .pf-toolbar, #toast, #viewer-modal { display: none !important; }
+
+      #main { margin-left: 0 !important; height: auto !important; overflow: visible !important; }
+
+      #content-area { overflow: visible !important; padding: 0 !important; height: auto !important; }
+
+      .view { display: none !important; }
+
+      #view-proforma { display: block !important; }
+
+      #pf-doc {
+
+        box-shadow: none !important; border-radius: 0 !important;
+
+        padding: 0 !important; max-width: 100% !important; width: 100% !important;
+
+        transform: none !important; transform-origin: unset !important;
+
+      }
+
+      /* Cada copia ocupa exactamente la mitad de la hoja */
+
+      .pf-copy {
+
+        display: block !important;
+
+        height: calc((297mm - 12mm) / 2 - 8mm) !important;
+
+        overflow: hidden !important;
+
+        box-sizing: border-box !important;
+
+      }
+
+      /* Separador central */
+
+      .pf-copy-divider {
+
+        border-top: 1.5px dashed #888 !important;
+
+        margin: 3mm 0 !important;
+
+        position: relative !important;
+
+        height: 8mm !important;
+
+        display: flex !important;
+
+        align-items: center !important;
+
+        justify-content: center !important;
+
+        page-break-inside: avoid !important;
+
+      }
+
+      .pf-copy-divider::before { display: none !important; }
+
+      .pf-copy-divider::after {
+
+        content: '\2702  CORTAR AQUI  -  Original: Laboratorio  |  Copia: Paciente  \2702' !important;
+
+        font-size: 7px !important; font-weight: 800 !important;
+
+        letter-spacing: 1px !important; color: #888 !important;
+
+        background: white !important; padding: 0 10px !important;
+
+        position: static !important; transform: none !important;
+
+        display: block !important; white-space: nowrap !important;
+
+      }
+
+      /* Tipografía y espaciado compactos para caber en media hoja */
+
+      .pf-header        { padding-bottom: 6px !important; margin-bottom: 8px !important; border-bottom-width: 1.5px !important; }
+
+      .pf-logo-box      { width: 32px !important; height: 32px !important; font-size: 15px !important; }
+
+      .pf-emp-name      { font-size: 11px !important; }
+
+      .pf-emp-sub       { font-size: 7.5px !important; }
+
+      .pf-doc-title     { font-size: 14px !important; }
+
+      .pf-folio         { font-size: 8px !important; }
+
+      .pf-fecha         { font-size: 7.5px !important; }
+
+      .pf-info-grid     { gap: 6px !important; margin-bottom: 6px !important; }
+
+      .pf-info-box      { padding: 5px 8px !important; border-radius: 5px !important; }
+
+      .pf-box-title     { font-size: 7px !important; margin-bottom: 4px !important; }
+
+      .pf-row           { margin-bottom: 1px !important; }
+
+      .pf-key, .pf-val  { font-size: 8px !important; }
+
+      .pf-table-wrap    { margin-bottom: 5px !important; border-radius: 5px !important; }
+
+      .pf-table th      { padding: 4px 8px !important; font-size: 8px !important; }
+
+      .pf-table td      { padding: 3px 8px !important; font-size: 8.5px !important; border-bottom-width: 0.5px !important; }
+
+      .pf-cat-tag       { font-size: 6.5px !important; padding: 1px 3px !important; }
+
+      .pf-totales       { margin-bottom: 5px !important; }
+
+      .pf-totales-box   { min-width: 160px !important; }
+
+      .pf-total-row     { padding: 3px 9px !important; font-size: 8px !important; }
+
+      .pf-total-row.hi  { font-size: 9.5px !important; }
+
+      .pf-footer        { padding-top: 6px !important; margin-top: 0 !important; }
+
+      .pf-footer-note   { font-size: 7px !important; line-height: 1.4 !important; }
+
+      .pf-firma-line    { width: 100px !important; margin-bottom: 3px !important; }
+
+      .pf-firma-label   { font-size: 7px !important; }
+
+      /* Badge de entrega compacto */
+
+      .pf-entrega-badge { margin-top: 5px !important; padding: 5px 9px !important; border-radius: 5px !important; }
+
+      .pf-entrega-badge .pf-eb-icon { font-size: 13px !important; }
+
+      .pf-entrega-badge .pf-eb-lbl  { font-size: 7px !important; margin-bottom: 1px !important; }
+
+      .pf-entrega-badge .pf-eb-val  { font-size: 10px !important; }
+
+    }
+
+    /* ── VIEW BUSCAR (inline) ── */
+
+    #view-buscar { display: none; }
+
+    #view-buscar.active { display: flex; flex-direction: column; gap: 14px; }
+
+
+
+    .bq-toolbar {
+
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+
+      background: var(--surface); border-radius: var(--radius);
+
+      box-shadow: var(--shadow-sm); padding: 12px 16px;
+
+    }
+
+    .bq-search-wrap { position: relative; flex: 1; min-width: 200px; }
+
+    .bq-input {
+
+      width: 100%; padding: 9px 12px 9px 34px;
+
+      border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+
+      font-size: 13px; font-family: inherit; background: var(--bg); outline: none;
+
+      color: var(--text); transition: border-color 0.2s, box-shadow 0.2s;
+
+    }
+
+    .bq-input:focus { border-color: var(--green); background: white; box-shadow: 0 0 0 3px rgba(46,204,113,0.12); }
+
+    .bq-input::placeholder { color: #a0aec0; }
+
+    .bq-select, .bq-date {
+
+      padding: 9px 10px; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+
+      font-size: 12px; font-family: inherit; background: var(--bg); outline: none;
+
+      color: var(--text); cursor: pointer; transition: border-color 0.2s;
+
+    }
+
+    .bq-select:focus, .bq-date:focus { border-color: var(--green); background: white; }
+
+    .bq-date { font-size: 12px; }
+
+
+
+    .bq-results-wrap {
+
+      background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow);
+
+      overflow: hidden; flex: 1;
+
+    }
+
+    .bq-results-header {
+
+      display: flex; justify-content: space-between; align-items: center;
+
+      padding: 10px 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 8px;
+
+    }
+
+    .bq-pagination { display: flex; gap: 6px; align-items: center; }
+
+    .bq-page-btn {
+
+      padding: 4px 10px; border-radius: 6px; border: 1.5px solid var(--border);
+
+      background: var(--bg); font-size: 12px; font-weight: 700; font-family: inherit;
+
+      cursor: pointer; transition: all 0.15s; color: var(--text);
+
+    }
+
+    .bq-page-btn:hover:not(:disabled) { border-color: var(--green); color: var(--green); }
+
+    .bq-page-btn.active { background: var(--green); border-color: var(--green); color: white; }
+
+    .bq-page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+
+
+    /* ── Tabla de resultados ── */
+
+    .bq-table { width: 100%; border-collapse: collapse; }
+
+    .bq-table th {
+
+      background: var(--green); color: white; padding: 9px 13px;
+
+      font-size: 11px; font-weight: 700; text-align: left;
+
+      text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap;
+
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+
+    }
+
+    .bq-table td { padding: 10px 13px; font-size: 13px; border-bottom: 1px solid #f8f9fa; }
+
+    .bq-table tbody tr:last-child td { border-bottom: none; }
+
+    .bq-table tbody tr { cursor: pointer; transition: background 0.12s; }
+
+    .bq-table tbody tr:hover { background: #f0faf5; }
+
+    .bq-table tbody tr.selected { background: var(--green-bg); }
+
+
+
+    /* ── Panel detalle lateral / modal ── */
+
+    .bq-detail-panel {
+
+      position: fixed; top: var(--topbar-h); right: 0; bottom: 0;
+
+      width: 400px; background: var(--surface);
+
+      box-shadow: -4px 0 24px rgba(0,0,0,0.12);
+
+      overflow-y: auto; z-index: 200;
+
+      display: flex; flex-direction: column;
+
+    }
+
+    .bq-detail-panel::-webkit-scrollbar { width: 4px; }
+
+    .bq-detail-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+    .bq-detail-header {
+
+      display: flex; justify-content: space-between; align-items: center;
+
+      padding: 14px 18px; border-bottom: 2px solid var(--green); flex-shrink: 0;
+
+      background: var(--green-bg); position: sticky; top: 0; z-index: 1;
+
+    }
+
+    .bq-detail-folio { font-size: 14px; font-weight: 800; font-family: 'DM Mono', monospace; color: var(--green-dark); }
+
+    .bq-detail-close {
+
+      background: none; border: none; cursor: pointer;
+
+      font-size: 16px; color: var(--muted); line-height: 1;
+
+      padding: 4px 7px; border-radius: 6px; transition: background 0.15s;
+
+    }
+
+    .bq-detail-close:hover { background: rgba(0,0,0,0.08); }
+
+    .bq-detail-section { padding: 14px 18px; border-bottom: 1px solid var(--border); }
+
+    .bq-detail-section:last-child { border-bottom: none; }
+
+    .bq-detail-section-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 10px; }
+
+    .bq-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    .bqd-field { display: flex; flex-direction: column; gap: 2px; }
+
+    .bqd-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); }
+
+    .bqd-value { font-size: 13px; font-weight: 600; color: var(--text); }
+
+    .bqd-value.mono { font-family: 'DM Mono', monospace; font-size: 12px; }
+
+    .bqd-value.big { font-size: 18px; font-weight: 800; color: var(--green-dark); }
+
+    .bqd-value.red { color: var(--red); }
+
+
+
+    /* Tabla estudios en detalle */
+
+    .bqd-estudio-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f8f9fa; font-size: 13px; }
+
+    .bqd-estudio-row:last-child { border-bottom: none; }
+
+
+
+    /* Tabla pagos en detalle */
+
+    .bqd-pago-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 7px 0; border-bottom: 1px solid #f8f9fa; font-size: 12px; gap: 8px; }
+
+    .bqd-pago-row:last-child { border-bottom: none; }
+
+    .bqd-pago-meta { color: var(--muted); font-size: 11px; }
+
+
+
+    /* Copy buttons */
+
+    .bq-copy-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    .bq-copy-btn {
+
+      display: inline-flex; align-items: center; gap: 5px;
+
+      padding: 5px 10px; border-radius: 6px; border: 1.5px solid var(--border);
+
+      background: var(--bg); font-size: 11px; font-weight: 700; font-family: inherit;
+
+      cursor: pointer; transition: all 0.15s; color: var(--text);
+
+    }
+
+    .bq-copy-btn:hover { border-color: var(--green); color: var(--green-dark); background: var(--green-bg); }
+
+    .bq-copy-btn.copied { background: var(--green-bg); border-color: var(--green); color: var(--green-dark); }
+
+
+
+    @media (max-width: 900px) {
+
+      .bq-detail-panel { width: 100%; top: auto; }
+
+    }
+
+    /* ── VIEW EMPRESA ── */
+
+    #view-empresa { display: none; }
+
+    #view-empresa.active { display: block; }
+
+
+
+    .emp-layout {
+
+      display: grid;
+
+      grid-template-columns: 240px 1fr;
+
+      grid-template-rows: auto auto;
+
+      gap: 16px;
+
+      align-items: start;
+
+    }
+
+    @media (max-width: 760px) { .emp-layout { grid-template-columns: 1fr; } }
+
+
+
+    .emp-logo-panel {
+
+      display: flex; flex-direction: column; align-items: center;
+
+      gap: 14px; padding: 24px; text-align: center;
+
+    }
+
+    .emp-logo-wrap { position: relative; width: 130px; height: 130px; }
+
+    .emp-logo-preview {
+
+      width: 130px; height: 130px; border-radius: 50%;
+
+      border: 3px solid var(--border); background: var(--bg);
+
+      display: flex; align-items: center; justify-content: center;
+
+      font-size: 44px; overflow: hidden;
+
+    }
+
+    .emp-logo-placeholder { font-size: 44px; line-height: 1; }
+
+    .emp-logo-overlay {
+
+      position: absolute; bottom: 4px; right: 4px;
+
+      width: 34px; height: 34px; background: var(--green); border-radius: 50%;
+
+      display: flex; align-items: center; justify-content: center;
+
+      cursor: pointer; box-shadow: 0 2px 6px rgba(46,204,113,0.4);
+
+      transition: background 0.2s, transform 0.15s; border: 2px solid white;
+
+    }
+
+    .emp-logo-overlay:hover { background: var(--green-dark); transform: scale(1.08); }
+
+    .emp-btn-remove {
+
+      font-size: 12px; color: var(--red); background: none; border: none;
+
+      cursor: pointer; font-family: inherit; font-weight: 600;
+
+      transition: opacity 0.2s; padding: 2px 0;
+
+    }
+
+    .emp-btn-remove:hover { opacity: 0.7; }
+
+    .emp-brand-note {
+
+      margin-top: 4px; font-size: 11px; line-height: 1.5; color: var(--muted);
+
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+
+      border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px;
+
+    }
+
+
+
+    .emp-form-panel { grid-column: 2; }
+
+    .emp-preview-panel { grid-column: 1 / -1; }
+
+    @media (max-width: 760px) {
+
+      .emp-form-panel   { grid-column: 1; }
+
+      .emp-preview-panel { grid-column: 1; }
+
+    }
+
+
+
+    .emp-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+    @media (max-width: 560px) { .emp-form-grid { grid-template-columns: 1fr; } }
+
+
+
+    .emp-field { display: flex; flex-direction: column; gap: 5px; }
+
+    .emp-field.full { grid-column: 1 / -1; }
+
+    .emp-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+
+    .emp-input {
+
+      padding: 10px 13px; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+
+      font-size: 13px; font-family: inherit; color: var(--text); background: var(--bg);
+
+      outline: none; transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+
+    }
+
+    .emp-input:focus { border-color: var(--green); background: white; box-shadow: 0 0 0 3px rgba(46,204,113,0.12); }
+
+    .emp-input::placeholder { color: #a0aec0; }
+
+    .emp-mono { font-family: 'DM Mono', monospace; letter-spacing: 1px; }
+
+
+
+    .emp-actions {
+
+      display: flex; justify-content: flex-end; gap: 10px;
+
+      margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); flex-wrap: wrap;
+
+    }
+
+    #emp-status.error   { color: var(--red); }
+
+    #emp-status.success { color: var(--green-dark); }
+
+
+
+    .emp-preview-card {
+
+      display: flex; align-items: center; gap: 18px;
+
+      padding: 18px; border: 1.5px solid var(--border);
+
+      border-radius: var(--radius-sm); background: var(--bg); flex-wrap: wrap;
+
+    }
+
+    .emp-preview-logo {
+
+      width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--border);
+
+      background: white; display: flex; align-items: center;
+
+      justify-content: center; font-size: 26px; flex-shrink: 0; overflow: hidden;
+
+    }
+
+    .emp-prev-detail { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+
+
+
+    /* ── PACIENTES INLINE ── */
+
+    @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    .pac-skeleton-cell {
+
+      height: 16px; border-radius: 6px;
+
+      background: linear-gradient(90deg, #f0f2f5 25%, #e2e8f0 50%, #f0f2f5 75%);
+
+      background-size: 200% 100%; animation: shimmerPac 1.4s infinite;
+
+    }
+
+    @keyframes shimmerPac { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    #pac-modal-form.open, #pac-modal-confirm.open { display: flex !important; }
+
+    #pac-pagination { display: none; }
+
+    #pac-pagination.visible { display: flex !important; }
+
+    #view-pacientes .pac-toolbar {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      padding: 16px 20px;
+      margin-bottom: 16px;
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) auto auto;
+      gap: 12px;
+      align-items: center;
+    }
+    #view-pacientes .pac-search-wrap {
+      min-width: 0;
+    }
+    #view-pacientes .pac-toolbar-meta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    #view-pacientes .pac-toolbar-select {
+      min-width: 74px;
+      padding: 9px 11px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font: inherit;
+      color: var(--text);
+      background: var(--bg);
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+    #view-pacientes .pac-toolbar-select:focus,
+    #view-pacientes .pac-form-input:focus,
+    #view-pacientes .pac-form-select:focus {
+      border-color: var(--green);
+      background: white;
+      box-shadow: 0 0 0 3px rgba(46, 204, 113, 0.12);
+    }
+    #view-pacientes .pac-table-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    #view-pacientes .pac-table-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    #view-pacientes .pac-table-info {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    #view-pacientes .pac-table-wrap {
+      overflow-x: auto;
+    }
+    #view-pacientes .pac-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--surface);
+    }
+    #view-pacientes .pac-table thead th {
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--muted);
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    #view-pacientes .pac-table tbody td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    #view-pacientes .pac-table tbody tr {
+      transition: background 0.18s ease;
+    }
+    #view-pacientes .pac-table tbody tr:hover {
+      background: #f8fffe;
+    }
+    #view-pacientes .pac-table tbody td:first-child,
+    #view-pacientes .pac-table tbody td:nth-child(3),
+    #view-pacientes .pac-table tbody td:nth-child(5) {
+      font-family: 'DM Mono', monospace;
+    }
+    #view-pacientes .pac-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    #view-pacientes .pac-badge-m {
+      background: #ebf5fb;
+      color: #2980b9;
+    }
+    #view-pacientes .pac-badge-f {
+      background: #fdf2f8;
+      color: #8e44ad;
+    }
+    #view-pacientes .pac-badge-o {
+      background: #f0f3f4;
+      color: #566573;
+    }
+    #view-pacientes .pac-action-group {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    #view-pacientes .pac-action-btn {
+      width: 32px;
+      height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      background: var(--bg);
+      transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+    }
+    #view-pacientes .pac-action-btn.edit {
+      color: var(--blue);
+    }
+    #view-pacientes .pac-action-btn.edit:hover {
+      background: #ebf5fb;
+    }
+    #view-pacientes .pac-action-btn.delete {
+      color: var(--red);
+    }
+    #view-pacientes .pac-action-btn.delete:hover:not(:disabled) {
+      background: #fdedec;
+    }
+    #view-pacientes .pac-action-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+    #view-pacientes .pac-empty-state,
+    #view-pacientes .pac-error-state {
+      padding: 56px 24px;
+      text-align: center;
+      color: var(--muted);
+    }
+    #view-pacientes .pac-empty-state .icon,
+    #view-pacientes .pac-error-state .icon {
+      font-size: 42px;
+      margin-bottom: 10px;
+      line-height: 1;
+    }
+    #view-pacientes .pac-empty-state .title,
+    #view-pacientes .pac-error-state .title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    #view-pacientes .pac-empty-state .copy,
+    #view-pacientes .pac-error-state .copy {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    #view-pacientes .pac-pagination {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      border-top: 1px solid var(--border);
+      gap: 12px;
+      flex-wrap: wrap;
+      background: linear-gradient(180deg, rgba(248,255,254,0.35) 0%, rgba(255,255,255,1) 100%);
+    }
+    #view-pacientes .pac-pagination-info {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    #view-pacientes .pac-pagination-controls {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    #view-pacientes .pac-page-btn {
+      width: 34px;
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      border: 1.5px solid var(--border);
+      background: white;
+      font-size: 13px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--text);
+      transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+    }
+    #view-pacientes .pac-page-btn:hover:not(:disabled):not(.active) {
+      border-color: var(--green);
+      color: var(--green-dark);
+    }
+    #view-pacientes .pac-page-btn.active {
+      background: var(--green);
+      border-color: var(--green);
+      color: white;
+      cursor: default;
+    }
+    #view-pacientes .pac-page-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    #view-pacientes .pac-page-dots {
+      padding: 0 4px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    #view-pacientes .pac-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      padding: 20px;
+      background: rgba(15, 23, 42, 0.5);
+      backdrop-filter: blur(3px);
+      z-index: 4000;
+      align-items: center;
+      justify-content: center;
+    }
+    #view-pacientes .pac-modal-dialog {
+      width: 100%;
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      animation: slideUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+      overflow: hidden;
+    }
+    #view-pacientes .pac-modal-dialog.form {
+      max-width: 560px;
+    }
+    #view-pacientes .pac-modal-dialog.confirm {
+      max-width: 410px;
+    }
+    #view-pacientes .pac-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    #view-pacientes .pac-modal-heading {
+      font-size: 1rem;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+    }
+    #view-pacientes .pac-modal-close {
+      width: 34px;
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 18px;
+      color: var(--muted);
+      transition: border-color 0.2s, color 0.2s, background 0.2s;
+    }
+    #view-pacientes .pac-modal-close:hover {
+      border-color: var(--green);
+      color: var(--green-dark);
+      background: var(--green-bg);
+    }
+    #view-pacientes .pac-modal-body {
+      padding: 24px;
+    }
+    #view-pacientes .pac-form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    #view-pacientes .pac-form-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+    #view-pacientes .pac-form-field.full {
+      grid-column: 1 / -1;
+    }
+    #view-pacientes .pac-form-label {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.55px;
+      color: var(--muted);
+    }
+    #view-pacientes .pac-form-input,
+    #view-pacientes .pac-form-select {
+      width: 100%;
+      padding: 10px 13px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+    #view-pacientes .pac-form-input.mono {
+      font-family: 'DM Mono', monospace;
+      letter-spacing: 0.35px;
+    }
+    #view-pacientes .pac-modal-status {
+      margin-top: 12px;
+      min-height: 18px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--red);
+    }
+    #view-pacientes .pac-modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      background: #fcfefd;
+    }
+    #view-pacientes .pac-confirm-body {
+      padding: 24px;
+      text-align: center;
+    }
+    #view-pacientes .pac-confirm-icon {
+      font-size: 44px;
+      margin-bottom: 12px;
+      line-height: 1;
+    }
+    #view-pacientes .pac-confirm-title {
+      font-size: 1rem;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+    #view-pacientes .pac-confirm-copy {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    #view-pacientes .pac-btn-danger {
+      background: var(--red);
+      color: white;
+      border-color: var(--red);
+    }
+    #view-pacientes .pac-btn-danger:hover:not(:disabled) {
+      filter: brightness(0.96);
+    }
+    @media (max-width: 900px) {
+      #view-pacientes .pac-toolbar {
+        grid-template-columns: 1fr;
+      }
+      #view-pacientes .pac-toolbar-meta,
+      #view-pacientes #pac-btn-nuevo {
+        width: 100%;
+      }
+      #view-pacientes #pac-btn-nuevo {
+        justify-content: center;
+      }
+    }
+    @media (max-width: 640px) {
+      #view-pacientes .pac-form-grid {
+        grid-template-columns: 1fr;
+      }
+      #view-pacientes .pac-modal-body,
+      #view-pacientes .pac-modal-header,
+      #view-pacientes .pac-modal-footer,
+      #view-pacientes .pac-confirm-body {
+        padding-left: 18px;
+        padding-right: 18px;
+      }
+      #view-pacientes .pac-modal-footer {
+        flex-direction: column-reverse;
+      }
+      #view-pacientes .pac-modal-footer .btn {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+
+
+
+    /* ── RESULTADOS INLINE ── */
+
+    .res-estudio-item {
+
+      border: 1.5px solid var(--border); border-radius: 10px;
+
+      overflow: hidden; transition: border-color 0.2s;
+
+    }
+
+    .res-estudio-item.tiene-archivo { border-color: var(--green); }
+
+    .res-estudio-item.tiene-archivo .res-estudio-head { background: var(--green-bg); }
+
+    .res-estudio-head {
+
+      display: flex; align-items: center; justify-content: space-between;
+
+      padding: 11px 14px; background: #f8fafc; flex-wrap: wrap; gap: 8px;
+
+    }
+
+    .res-estudio-head-left { display: flex; align-items: center; gap: 10px; }
+
+    .res-estudio-num {
+
+      font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500;
+
+      background: var(--border); color: var(--muted); padding: 2px 7px; border-radius: 6px;
+
+    }
+
+    .res-estudio-nombre { font-size: 14px; font-weight: 700; }
+
+    .res-estudio-cat { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); }
+
+    .res-file-status { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; }
+
+    .res-file-status.ok    { color: var(--green-dark); }
+
+    .res-file-status.empty { color: var(--muted); }
+
+    .res-upload-zone { padding: 10px 14px; border-top: 1px solid var(--border); background: white; }
+
+    .res-drop-area {
+
+      border: 2px dashed var(--border); border-radius: 8px; padding: 14px 12px;
+
+      text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s;
+
+      position: relative;
+
+    }
+
+    .res-drop-area:hover, .res-drop-area.dragover { border-color: var(--green); background: var(--green-bg); }
+
+    .res-drop-area input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+
+    .res-drop-label { font-size: 12px; color: var(--muted); font-weight: 500; }
+
+    .res-drop-label strong { color: var(--green-dark); }
+
+    .res-file-preview {
+
+      display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+
+      background: var(--bg); border-radius: 8px; margin-top: 8px;
+
+    }
+
+    .res-file-icon { font-size: 22px; }
+
+    .res-file-info { flex: 1; min-width: 0; }
+
+    .res-file-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .res-file-size { font-size: 11px; color: var(--muted); }
+
+    .res-btn-remove-file {
+
+      background: none; border: none; cursor: pointer; font-size: 16px;
+
+      color: var(--muted); padding: 2px 6px; border-radius: 6px; transition: background 0.15s, color 0.15s;
+
+    }
+
+    .res-btn-remove-file:hover { background: #fdedec; color: var(--red); }
+
+    .res-existing-file {
+
+      display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+
+      background: var(--green-bg); border-radius: 8px; margin-top: 6px;
+
+    }
+
+    .res-existing-file-link {
+
+      font-size: 12px; font-weight: 600; color: var(--green-dark);
+
+      text-decoration: none; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+
+    }
+
+    .res-existing-file-link:hover { text-decoration: underline; }
+
+    .res-btn-delete-file {
+
+      background: none; border: none; cursor: pointer; font-size: 14px;
+
+      color: var(--muted); padding: 2px 6px; border-radius: 6px; transition: background 0.15s, color 0.15s;
+
+    }
+
+    .res-btn-delete-file:hover { background: #fdedec; color: var(--red); }
+
+    .res-file-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+
+    .res-btn-file-action {
+
+      display: inline-flex; align-items: center; gap: 5px; padding: 6px 13px; border-radius: 7px;
+
+      font-size: 12px; font-weight: 700; font-family: inherit; border: none; cursor: pointer;
+
+      text-decoration: none; transition: background 0.2s;
+
+    }
+
+    .res-btn-view { background: var(--blue-bg); color: #1a5276; border: 1.5px solid #aed6f1; }
+
+    .res-btn-view:hover { background: #d6eaf8; }
+
+    .res-btn-download { background: var(--green-bg); color: var(--green-dark); border: 1.5px solid #a9dfbf; }
+
+    .res-btn-download:hover { background: #d5f5e3; }
+
+    .res-resultado-card {
+
+      border: 1.5px solid var(--green); border-radius: 10px;
+
+      background: var(--green-bg); overflow: hidden; transition: box-shadow 0.2s;
+
+    }
+
+    .res-resultado-card:hover { box-shadow: 0 4px 14px rgba(46,204,113,0.18); }
+
+    .res-resultado-card-head { padding: 10px 14px; border-bottom: 1px solid #a9dfbf; background: white; }
+
+    .res-resultado-card-cat { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); }
+
+    .res-resultado-card-nombre { font-size: 14px; font-weight: 700; color: var(--text); margin-top: 1px; }
+
+    .res-resultado-card-body { padding: 10px 14px; display: flex; align-items: center; gap: 10px; }
+
+    .res-resultado-card-icon { font-size: 26px; flex-shrink: 0; }
+
+    .res-resultado-card-info { flex: 1; min-width: 0; }
+
+    .res-resultado-card-filename { font-size: 11px; font-weight: 600; color: var(--green-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .res-resultado-card-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+
+    .res-resultado-card-actions .res-btn-file-action { flex: 1; justify-content: center; padding: 5px 8px; font-size: 11px; }
+
+    .res-completados-empty {
+
+      display: flex; flex-direction: column; align-items: center;
+
+      justify-content: center; min-height: 280px; color: var(--muted); font-size: 14px; gap: 10px;
+
+    }
+
+    .res-completados-empty .big-icon { font-size: 44px; }
+
+    #res-viewer-modal {
+
+      display: none; position: fixed; inset: 0; z-index: 10000;
+
+      background: rgba(0,0,0,0.72); align-items: center; justify-content: center;
+
+    }
+
+    #res-viewer-modal.open { display: flex; }
+
+    .res-viewer-box {
+
+      background: white; border-radius: 14px;
+
+      box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+
+      width: 90vw; max-width: 900px; height: 88vh;
+
+      display: flex; flex-direction: column; overflow: hidden;
+
+    }
+
+    .res-viewer-header {
+
+      display: flex; align-items: center; justify-content: space-between;
+
+      padding: 12px 18px; border-bottom: 1px solid var(--border);
+
+      background: #f8fafc; flex-shrink: 0;
+
+    }
+
+    .res-viewer-title {
+
+      font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px;
+
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%;
+
+    }
+
+    .res-viewer-toolbar { display: flex; gap: 8px; align-items: center; }
+
+    .res-viewer-body { flex: 1; overflow: hidden; display: flex; }
+
+    .res-viewer-body iframe, .res-viewer-body img { width: 100%; height: 100%; border: none; display: block; }
+
+    .res-viewer-body img { object-fit: contain; background: #1a202c; }
+
+    .res-viewer-unsupported {
+
+      display: flex; flex-direction: column; align-items: center;
+
+      justify-content: center; gap: 14px; width: 100%;
+
+      color: var(--muted); font-size: 14px; text-align: center; padding: 32px;
+
+    }
+
+    #view-caja.cj-view {
+      display: none;
+      min-height: calc(100vh - var(--topbar-h) - 32px);
+    }
+    #view-caja.cj-view.active {
+      display: block;
+    }
+    #cj-host {
+      position: relative;
+      min-height: calc(100vh - var(--topbar-h) - 32px);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    #cj-host .cj-loading-shell,
+    #cj-host .cj-error-shell {
+      min-height: 420px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--muted);
+      padding: 32px;
+      text-align: center;
+    }
+    #cj-host .cj-loading-shell .big,
+    #cj-host .cj-error-shell .big {
+      font-size: 44px;
+      line-height: 1;
+    }
+
+  </style>
+
+</head>
+
+<body>
+
+
+
+<!-- SIDEBAR -->
+
+<nav id="sidebar" role="navigation" aria-label="Menú principal">
+
+  <div class="sidebar-brand">
+
+    <div class="sidebar-brand-icon" id="sb-brand-icon">
+
+      <span id="sb-brand-icon-fallback">🔬</span>
+
+      <img id="sb-brand-icon-img" alt="Logo empresa" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:9px;">
+
+    </div>
+
+    <div>
+
+      <div class="sidebar-brand-name" id="sb-brand-name">SIS Laboratory</div>
+
+      <div class="sidebar-brand-sub" id="sb-brand-sub">Sistema de gestión</div>
+
+    </div>
+
+  </div>
+
+
+
+  <div class="sidebar-user">
+
+    <div class="sidebar-avatar" id="sb-avatar">?</div>
+
+    <div>
+
+      <div class="sidebar-username" id="sb-username">—</div>
+
+      <div class="sidebar-role"    id="sb-role">—</div>
+
+    </div>
+
+  </div>
+
+
+
+  <div class="sidebar-section-label">Principal</div>
+
+  <div class="nav-item active" data-view="inicio"          onclick="goTo('inicio')">         <span class="nav-icon">🏠</span> Inicio</div>
+
+  <div class="nav-item"        data-view="nueva-orden"     onclick="goTo('nueva-orden')">    <span class="nav-icon">➕</span> Nueva Orden</div>
+
+  <div class="nav-item"        data-view="buscar"          onclick="goTo('buscar')">         <span class="nav-icon">🔍</span> Buscar Orden</div>
+
+  <div class="nav-item"        data-view="pacientes"       onclick="goTo('pacientes')">      <span class="nav-icon">👥</span> Pacientes</div>
+
+
+
+  <div class="sidebar-section-label">Laboratorio</div>
+
+  <div class="nav-item"        data-view="agenda"           onclick="goTo('agenda')">          <span class="nav-icon">📅</span> Agenda</div>
+
+  <div class="nav-item"        data-view="carga-resultados" onclick="goTo('carga-resultados')"><span class="nav-icon">📤</span> Resultados</div>
+  <div class="nav-item"        data-view="proforma"        onclick="goTo('proforma')">       <span class="nav-icon">🧾</span> Orden de Estudios</div>
+
+  <div class="nav-item"        data-view="caja"            onclick="goTo('caja')">           <span class="nav-icon">🏧</span> Caja</div>
+
+
+
+  <div class="sidebar-section-label">Configuración</div>
+
+  <div class="nav-item"        data-view="catalogo"        onclick="goTo('catalogo')">       <span class="nav-icon">🧪</span> Catálogo de Estudios</div>
+
+  <div class="nav-item"        data-view="empresa"         onclick="goTo('empresa')">        <span class="nav-icon">🏢</span> Empresa</div>
+
+  <div class="nav-item"        data-view="usuarios"        onclick="goTo('usuarios')">       <span class="nav-icon">👤</span> Usuarios</div>
+
+
+
+  <div class="sidebar-footer">
+
+    <button class="btn-logout-side" onclick="logout()">
+
+      <span style="font-size:15px;">🚪</span> Cerrar sesión
+
+    </button>
+
+  </div>
+
+</nav>
+
+
+
+<!-- MAIN -->
+
+<div id="main">
+
+  <div id="topbar">
+
+    <div class="topbar-title" id="topbar-title">🏠 Inicio</div>
+
+    <div class="topbar-breadcrumb">
+
+      SIS Lab <span style="margin:0 4px;color:var(--border)">›</span>
+
+      <span id="tb-page">Inicio</span>
+
+    </div>
+
+  </div>
+
+
+
+  <div id="content-area">
+
+
+
+    <!-- ══ INICIO ══ -->
+
+    <div class="view active" id="view-inicio">
+
+      <div class="metrics-grid">
+
+        <div class="metric-card"><div class="metric-label">Órdenes hoy</div><div class="metric-value" id="m-ord">—</div></div>
+
+        <div class="metric-card"><div class="metric-label">Ingresos hoy</div><div class="metric-value" id="m-ing">—</div></div>
+
+        <div class="metric-card"><div class="metric-label">Pacientes</div><div class="metric-value" id="m-pac">—</div></div>
+
+        <div class="metric-card"><div class="metric-label">Completados hoy</div><div class="metric-value" id="m-comp" style="color:var(--blue)">—</div></div>
+
+        <div class="metric-card"><div class="metric-label">Saldo por cobrar</div><div class="metric-value" id="m-saldo" style="color:var(--red)">—</div></div>
+
+      </div>
+
+      <div class="dash-table-wrap">
+
+        <div class="card-header">
+
+          <div class="card-title">📋 Últimas 8 órdenes</div>
+
+          <a onclick="goTo('buscar')" style="font-size:12px;font-weight:700;color:var(--green);cursor:pointer;text-decoration:none;">Ver todas →</a>
+
+        </div>
+
+        <table class="dash-table">
+
+          <thead><tr><th>Folio</th><th>Paciente</th><th>Estado</th><th>Total</th><th>Fecha</th></tr></thead>
+
+          <tbody id="dash-tbody"></tbody>
+
+        </table>
+
+      </div>
+
+    </div>
+
+
+
+    <!-- ══ VER RESULTADOS ══ -->
+
+    <div class="view" id="view-ver-resultados">
+
+      <div class="two-col">
+
+        <div class="card">
+
+          <div class="card-header">
+
+            <div class="card-title">✅ Órdenes completadas</div>
+
+            <span id="rv-count" style="font-size:11px;color:var(--muted);font-weight:600;"></span>
+
+          </div>
+
+          <div class="card-body" style="padding-bottom:8px;">
+
+            <div class="search-wrap">
+
+              <svg viewBox="0 0 20 20"><path d="M12.9 14.32a8 8 0 1 1 1.41-1.41l5.35 5.33-1.42 1.42-5.34-5.34zM8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12z"/></svg>
+
+              <input class="search-input" id="rv-search" type="text" placeholder="Nombre, folio, DNI…" autocomplete="off">
+
+            </div>
+
+            <div class="patient-list" id="rv-list"><div class="spinner"></div></div>
+
+          </div>
+
+        </div>
+
+        <div class="card">
+
+          <div class="right-empty" id="rv-empty"><div class="big-icon">📂</div><div>Selecciona una orden</div></div>
+
+          <div id="rv-section" style="display:none;">
+
+            <div class="orden-info" id="rv-info"></div>
+
+            <div class="resultados-grid" id="rv-grid"></div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ORDEN DE ESTUDIOS -->
+
+    <div class="view" id="view-proforma">
+
+      <div class="pf-search-row">
+
+        <div class="field-group">
+
+          <label class="field-label">Folio de la orden</label>
+
+          <input class="field-input" id="pf-folio" type="text" placeholder="Ej: LAB-SUC1-2025-000001" style="font-family:'DM Mono',monospace;" autocomplete="off">
+
+        </div>
+
+        <button class="btn btn-primary" id="pf-btn">🔍 Buscar orden</button>
+
+      </div>
+
+    <!-- Fecha estimada de entrega -->
+
+      <div class="pf-entrega-row">
+
+        <div class="field-group">
+
+          <label class="field-label">📅 Fecha estimada de entrega de resultados</label>
+
+          <input class="field-input" id="pf-entrega" type="date">
+
+        </div>
+
+        <div class="pf-entrega-hint">
+
+          <span style="display:inline-flex;align-items:center;gap:6px;background:#eafaf1;border:1px solid #a9dfbf;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;color:#1e8449;">
+
+            ✅ Se imprimira en la Orden de Estudios (original y copia)
+
+          </span>
+
+        </div>
+
+      </div>
+
+      <div id="pf-err" style="display:none;margin-bottom:12px;font-size:13px;color:var(--red);font-weight:600;"></div>
+
+      <div id="pf-content"><div class="empty-state"><div class="icon">🧾</div><div>Ingresa un folio para generar la Orden de Estudios</div></div></div>
+
+    </div>
+
+
+
+    <!-- ══ AGENDA ══ -->
+
+    <div class="view" id="view-agenda">
+
+
+
+      <!-- Toolbar -->
+
+      <div class="ag-toolbar">
+
+        <div class="ag-date-nav">
+
+          <button onclick="agMoverDia(-1)" title="Día anterior">‹</button>
+
+          <span class="ag-date-label" id="ag-date-label">—</span>
+
+          <button onclick="agMoverDia(1)"  title="Día siguiente">›</button>
+
+          <button onclick="agHoy()" style="font-size:11px;font-weight:700;" title="Hoy">HOY</button>
+
+        </div>
+
+        <input type="date" id="ag-date-picker" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:var(--bg);outline:none;color:var(--text);" onchange="agCambiarFecha(this.value)">
+
+        <select class="ag-select" id="ag-suc-sel" onchange="agRefresh()">
+
+          <option value="CDC">CDC</option>
+
+          <option value="NTE">Norte</option>
+
+          <option value="SUR">Sur</option>
+
+        </select>
+
+        <select class="ag-select" id="ag-tec-sel" onchange="agRefresh()">
+
+          <option value="">Todos los técnicos</option>
+
+        </select>
+
+        <div class="ag-spacer"></div>
+
+        <button class="btn btn-ghost btn-sm" onclick="abrirModalBloqueo()">🚫 Bloquear horario</button>
+
+        <button class="btn btn-primary"      onclick="abrirModalCita()">+ Nueva cita</button>
+
+      </div>
+
+
+
+      <div class="ag-layout">
+
+        <!-- Timeline -->
+
+        <div class="ag-timeline">
+
+          <div class="ag-tl-header">
+
+            <div class="ag-tl-title" id="ag-tl-title">Agenda del día</div>
+
+            <div class="ag-tl-legend">
+
+              <div class="ag-legend-item"><div class="ag-legend-dot" style="background:#f39c12;"></div>Programada</div>
+
+              <div class="ag-legend-item"><div class="ag-legend-dot" style="background:#3498db;"></div>Confirmada</div>
+
+              <div class="ag-legend-item"><div class="ag-legend-dot" style="background:#2ecc71;"></div>En curso</div>
+
+              <div class="ag-legend-item"><div class="ag-legend-dot" style="background:#95a5a6;"></div>Completada</div>
+
+            </div>
+
+          </div>
+
+          <div class="ag-tl-body" id="ag-tl-body"><div class="spinner"></div></div>
+
+        </div>
+
+
+
+        <!-- Sidebar -->
+
+        <div class="ag-sidebar">
+
+          <!-- Stats del día -->
+
+          <div class="ag-stats">
+
+            <div class="ag-stats-title">Resumen del día</div>
+
+            <div class="ag-stat-row"><span class="ag-stat-label">📋 Total citas</span><span class="ag-stat-val" id="ag-stat-total">—</span></div>
+
+            <div class="ag-stat-row"><span class="ag-stat-label">✅ Confirmadas</span><span class="ag-stat-val" style="color:var(--blue)" id="ag-stat-conf">—</span></div>
+
+            <div class="ag-stat-row"><span class="ag-stat-label">🔬 En curso</span><span class="ag-stat-val" style="color:var(--green)" id="ag-stat-curso">—</span></div>
+
+            <div class="ag-stat-row"><span class="ag-stat-label">✔ Completadas</span><span class="ag-stat-val" style="color:var(--muted)" id="ag-stat-comp">—</span></div>
+
+            <div class="ag-stat-row"><span class="ag-stat-label">❌ Canceladas</span><span class="ag-stat-val" style="color:var(--red)" id="ag-stat-cancel">—</span></div>
+
+          </div>
+
+
+
+          <!-- Lista rápida -->
+
+          <div class="ag-list">
+
+            <div class="ag-list-header">🗓 Próximas citas</div>
+
+            <div class="ag-list-body" id="ag-list-body"></div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+
+    <!-- ══ CATÁLOGO DE ESTUDIOS ══ -->
+
+    <div class="view" id="view-catalogo">
+
+
+
+      <div class="cat-toolbar">
+
+        <div class="search-wrap" style="flex:1;min-width:200px;">
+
+          <svg viewBox="0 0 20 20"><path d="M12.9 14.32a8 8 0 1 1 1.41-1.41l5.35 5.33-1.42 1.42-5.34-5.34zM8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12z"/></svg>
+
+          <input class="search-input" id="cat-search" type="text" placeholder="Buscar por clave, nombre, categoría o indicación…" autocomplete="off">
+
+        </div>
+
+        <button class="btn btn-primary" id="btn-nuevo-estudio" onclick="abrirModalEstudio()">+ Nuevo estudio</button>
+
+      </div>
+
+
+
+      <div class="cat-chips" id="cat-chips"></div>
+
+
+
+      <div class="estudios-table-wrap">
+
+        <div class="card-header">
+
+          <div class="card-title">🧪 Estudios / Análisis</div>
+
+          <span id="cat-count" style="font-size:11px;color:var(--muted);font-weight:600;"></span>
+
+        </div>
+
+        <div id="cat-body"><div class="spinner"></div></div>
+
+      </div>
+
+
+
+    </div>
+
+
+
+    <!-- ══ PÁGINAS EXTERNAS ══ -->
+
+    <div class="view" id="view-nueva-orden">
+      <div id="dashboard-nueva-orden-root"></div>
+      <template id="tpl-dashboard-nueva-orden">
+<div class="nueva-orden-page">
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div>
+      <div class="page-title">Ordenes</div>
+      <div class="page-subtitle">Gestion de ordenes de laboratorio</div>
+    </div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab-btn active" id="tab-nueva" onclick="switchTab('nueva')">+ Nueva Orden</button>
+  <button class="tab-btn" id="tab-buscar" onclick="switchTab('buscar')">Buscar / Editar</button>
+</div>
+
+<!-- â•â•â•â•â•â•â•â•â•â• TAB: NUEVA ORDEN â•â•â•â•â•â•â•â•â•â• -->
+<div id="pane-nueva">
+
+  <!-- PATIENT DATA -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Datos del paciente</div>
+    </div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="field">
+          <label for="nombre">Nombre completo *</label>
+          <input id="nombre" type="text" placeholder="Ej: Juan Perez Garcia" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="celular">Celular</label>
+          <input id="celular" type="tel" placeholder="Ej: 5551234567">
+        </div>
+        <div class="field">
+          <label for="fecha-nacimiento">Fecha de nacimiento *</label>
+          <input id="fecha-nacimiento" type="date" max="2999-12-31">
+        </div>
+        <div class="field">
+          <label for="sexo">Sexo *</label>
+          <select id="sexo">
+            <option value="">-- Selecciona --</option>
+            <option value="M">Masculino</option>
+            <option value="F">Femenino</option>
+            <option value="O">Otro</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="sucursal">Sucursal *</label>
+          <select id="sucursal">
+            <option value="CDC">CDC</option>
+            <option value="NTE">Norte</option>
+            <option value="SUR">Sur</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="medico">Medico solicitante</label>
+          <input id="medico" type="text" placeholder="Ej: Dr. Garcia Lopez" autocomplete="off">
+        </div>
+        <!-- CAMPO NUEVO: Telefono del medico (opcional) -->
+        <div class="field">
+          <label for="medico-telefono">Telefono del medico <span style="font-weight:400;text-transform:none;">(opcional)</span></label>
+          <input id="medico-telefono" type="tel" placeholder="Ej: 5559876543">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STUDIES SELECTION â€” OPTIMIZADO -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Seleccionar estudios</div>
+    </div>
+    <div class="card-body">
+      <!-- Live search con autofocus para flujo de cajero -->
+      <div class="estudios-search-wrap">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.9 14.32a8 8 0 1 1 1.41-1.41l5.35 5.33-1.42 1.42-5.34-5.34zM8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12z"/></svg>
+        <input
+          class="estudios-search"
+          id="search-nueva"
+          type="text"
+          placeholder="Buscar por nombre o clave externa..."
+          autocomplete="off"
+          autofocus
+        >
+      </div>
+      <!-- Filtros de categoria combinables con la busqueda -->
+      <div class="category-filters" id="cat-filters-nueva"></div>
+      <div class="estudios-count-bar">
+        <span id="estudios-count-nueva">0 estudios</span>
+        <span id="estudios-sel-nueva" style="color:var(--green)"></span>
+      </div>
+      <!-- Lista compacta con scroll interno -->
+      <div class="estudios-list-wrap" id="estudios-nueva"></div>
+    </div>
+  </div>
+
+  <!-- SUMMARY + SUBMIT -->
+  <div class="summary">
+    <div class="summary-items">
+      <div class="summary-item">
+        <span class="lbl">Estudios</span>
+        <span class="val" id="count-nueva">0</span>
+      </div>
+      <div class="summary-item">
+        <span class="lbl">Total</span>
+        <span class="val green">$<span id="total-nueva">0.00</span></span>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <button class="btn btn-yellow" id="btn-cotizacion">Imprimir cotizacion</button>
+      <button class="btn btn-primary" id="btn-guardar">Guardar orden</button>
+    </div>
+  </div>
+
+  <div id="status" role="alert" aria-live="polite"></div>
+
+</div><!-- /pane-nueva -->
+
+<!-- â•â•â•â•â•â•â•â•â•â• TAB: BUSCAR / EDITAR â•â•â•â•â•â•â•â•â•â• -->
+<div id="pane-buscar" style="display:none;">
+
+  <!-- SEARCH -->
+  <div class="search-panel">
+    <div class="search-wrap">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.9 14.32a8 8 0 1 1 1.41-1.41l5.35 5.33-1.42 1.42-5.34-5.34zM8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12z"/></svg>
+      <input class="search-input" id="folio-input" type="text" placeholder="Buscar por folio  (LAB-CDC-2025-000001)" autocomplete="off">
+    </div>
+    <button class="btn btn-secondary" id="btn-buscar">Buscar</button>
+    <button class="btn btn-ghost" id="btn-limpiar-busqueda" style="display:none">Limpiar</button>
+  </div>
+
+  <!-- RESULT PANEL (hidden initially) -->
+  <div id="result-panel" style="display:none;">
+
+    <!-- ORDER HEADER INFO -->
+    <div class="card">
+      <div class="card-header">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <div class="card-title">Detalle de orden</div>
+          <div class="folio-badge" id="folio-display">-</div>
+          <div class="estado-badge" id="estado-badge">-</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <select id="edit-estado" class="btn btn-ghost" style="padding:8px 12px;font-size:13px;font-weight:600;">
+            <option value="pendiente">Pendiente</option>
+            <option value="en_proceso">En proceso</option>
+            <option value="completado">Completado</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
+          <button class="btn btn-primary" id="btn-actualizar-estado">Actualizar estado</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="form-grid cols-3" id="edit-paciente-fields">
+          <div class="field">
+            <label>Nombre completo</label>
+            <input id="e-nombre" type="text" placeholder="Nombre del paciente">
+          </div>
+          <div class="field">
+            <label>Celular</label>
+            <input id="e-celular" type="tel" placeholder="Celular">
+          </div>
+          <div class="field">
+            <label>Fecha de nacimiento</label>
+            <input id="e-fecha-nacimiento" type="date" max="2999-12-31">
+          </div>
+          <div class="field">
+            <label>Sexo</label>
+            <select id="e-sexo">
+              <option value="">-- Selecciona --</option>
+              <option value="M">Masculino</option>
+              <option value="F">Femenino</option>
+              <option value="O">Otro</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Sucursal</label>
+            <select id="e-sucursal">
+              <option value="CDC">CDC</option>
+              <option value="NTE">Norte</option>
+              <option value="SUR">Sur</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Medico solicitante</label>
+            <input id="e-medico" type="text" placeholder="Dr. ...">
+          </div>
+          <!-- CAMPO NUEVO: Telefono del medico en edicion -->
+          <div class="field">
+            <label>Telefono del medico <span style="font-weight:400;text-transform:none;">(opcional)</span></label>
+            <input id="e-medico-telefono" type="tel" placeholder="Ej: 5559876543">
+          </div>
+          <div class="field">
+            <label>Fecha</label>
+            <input id="e-fecha" type="text" disabled>
+          </div>
+          <div class="field">
+            <label>Total</label>
+            <input id="e-total" type="text" disabled>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div style="display:flex;justify-content:flex-end;">
+          <button class="btn btn-primary" id="btn-guardar-paciente">Guardar cambios del paciente</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STUDIES EDIT -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Estudios de la orden</div>
+      </div>
+      <div class="card-body">
+
+        <!-- Readonly notice -->
+        <div class="readonly-notice" id="readonly-notice" style="display:none;">
+          Esta orden esta <strong id="readonly-reason">completada</strong> - los estudios no pueden modificarse.
+        </div>
+
+        <!-- Currently assigned studies -->
+        <div class="section-label">Estudios asignados</div>
+        <div id="assigned-studies" style="margin-bottom:16px;"></div>
+
+        <!-- Add more studies (only when editable) -->
+        <div id="add-studies-section">
+          <div class="divider"></div>
+          <div class="section-label" style="margin-top:12px;">Agregar estudios</div>
+        <!-- Live search tambien en edicion -->
+          <div class="estudios-search-wrap" style="margin-bottom:12px;">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.9 14.32a8 8 0 1 1 1.41-1.41l5.35 5.33-1.42 1.42-5.34-5.34zM8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12z"/></svg>
+            <input
+              class="estudios-search"
+              id="search-edit"
+              type="text"
+              placeholder="Buscar por nombre o clave externa..."
+              autocomplete="off"
+            >
+          </div>
+          <div class="category-filters" id="cat-filters-edit"></div>
+          <div class="estudios-count-bar">
+            <span id="estudios-count-edit">0 estudios</span>
+          </div>
+          <div class="estudios-list-wrap" id="estudios-edit"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SAVE STUDIES BUTTON -->
+    <div class="summary" id="edit-summary" style="display:none;">
+      <div class="summary-items">
+        <div class="summary-item">
+          <span class="lbl">Estudios a agregar</span>
+          <span class="val" id="count-edit">0</span>
+        </div>
+        <div class="summary-item">
+          <span class="lbl">Costo adicional</span>
+          <span class="val green">$<span id="total-edit">0.00</span></span>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="btn-guardar-estudios">Guardar cambios de estudios</button>
+    </div>
+
+    <div id="status-edit" role="alert" aria-live="polite" style="margin-bottom:12px;"></div>
+
+  </div><!-- /result-panel -->
+
+  <!-- EMPTY SEARCH STATE -->
+  <div id="empty-search" class="card">
+    <div class="empty-state">
+      <div class="icon"></div>
+      <div>Ingresa un folio para buscar y editar una orden</div>
+    </div>
+  </div>
+
+</div><!-- /pane-buscar -->
+
+<!-- TOAST -->
+<div id="toast" role="status" aria-live="polite"></div>
+
+<!-- PRINT TICKET (cotizacion) -->
+<div id="print-cotizacion" aria-hidden="true"></div>
+</div>
+
+      </template>
+    </div>
+
+    <div class="view" id="view-buscar">
+
+
+
+      <!-- Barra de filtros -->
+
+      <div class="bq-toolbar">
+
+        <div class="bq-search-wrap">
+
+          <svg viewBox="0 0 20 20" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);width:15px;height:15px;fill:var(--muted);pointer-events:none;"><path d="M12.9 14.32a8 8 0 1 1 1.41-1.41l5.35 5.33-1.42 1.42-5.34-5.34zM8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12z"/></svg>
+
+          <input class="bq-input" id="bq-q" type="text" placeholder="Folio, paciente, DNI, celular…" autocomplete="off">
+
+        </div>
+
+        <select class="bq-select" id="bq-estado">
+
+          <option value="">Todos los estados</option>
+
+          <option value="pendiente">Pendiente</option>
+
+          <option value="en_proceso">En proceso</option>
+
+          <option value="completado">Completado</option>
+
+          <option value="cancelado">Cancelado</option>
+
+        </select>
+
+        <select class="bq-select" id="bq-sucursal">
+
+          <option value="">Todas las sucursales</option>
+
+          <option value="CDC">CDC</option>
+
+          <option value="NTE">Norte</option>
+
+          <option value="SUR">Sur</option>
+
+        </select>
+
+        <input class="bq-date" id="bq-desde" type="date" title="Desde">
+
+        <span style="font-size:12px;color:var(--muted);font-weight:600;">–</span>
+
+        <input class="bq-date" id="bq-hasta" type="date" title="Hasta">
+
+        <button class="btn btn-primary btn-sm" id="bq-btn-buscar" onclick="bqBuscar(0)">🔍 Buscar</button>
+
+        <button class="btn btn-ghost btn-sm"   id="bq-btn-limpiar" onclick="bqLimpiar()">✕ Limpiar</button>
+
+      </div>
+
+
+
+      <!-- Resultados + paginación -->
+
+      <div class="bq-results-wrap">
+
+        <div class="bq-results-header">
+
+          <span id="bq-count" style="font-size:12px;font-weight:700;color:var(--muted);">—</span>
+
+          <div id="bq-pagination" class="bq-pagination"></div>
+
+        </div>
+
+        <div id="bq-table-container">
+
+          <div class="empty-state" style="min-height:220px;">
+
+            <div class="icon">🔍</div>
+
+            <div>Usa los filtros para buscar órdenes</div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+
+      <!-- Panel lateral: detalle de orden seleccionada -->
+
+      <div id="bq-detail-panel" class="bq-detail-panel" style="display:none;">
+
+        <div class="bq-detail-header">
+
+          <div class="bq-detail-folio" id="bqd-folio">—</div>
+
+          <button class="bq-detail-close" onclick="bqCerrarDetalle()">✕</button>
+
+        </div>
+
+
+
+        <!-- Info general -->
+
+        <div class="bq-detail-section">
+
+          <div class="bq-detail-grid" id="bqd-info"></div>
+
+        </div>
+
+
+
+        <!-- Estudios -->
+
+        <div class="bq-detail-section">
+
+          <div class="bq-detail-section-title">🧪 Estudios</div>
+
+          <div id="bqd-estudios"></div>
+
+        </div>
+
+
+
+        <!-- Historial de pagos -->
+
+        <div class="bq-detail-section">
+
+          <div class="bq-detail-section-title">💳 Pagos registrados</div>
+
+          <div id="bqd-pagos"></div>
+
+        </div>
+
+
+
+        <!-- Cambiar estado -->
+
+        <div class="bq-detail-section">
+
+          <div class="bq-detail-section-title">⚙️ Cambiar estado</div>
+
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+
+            <select class="bq-pago-input" id="bqd-estado-sel" style="flex:1;min-width:140px;">
+
+              <option value="pendiente">Pendiente</option>
+
+              <option value="en_proceso">En proceso</option>
+
+              <option value="completado">Completado</option>
+
+              <option value="cancelado">Cancelado</option>
+
+            </select>
+
+            <button class="btn btn-ghost btn-sm" onclick="bqCambiarEstado()">Guardar</button>
+
+          </div>
+
+        </div>
+
+
+
+        <!-- Copiar datos útiles -->
+
+        <div class="bq-detail-section">
+
+          <div class="bq-detail-section-title">📋 Copiar datos</div>
+
+          <div class="bq-copy-btns" id="bqd-copy-btns"></div>
+
+        </div>
+
+
+
+      </div>
+
+    </div>
+
+    <!-- ══ PACIENTES (inline completo) ══ -->
+
+    <div class="view" id="view-pacientes">
+
+
+
+      <!-- TOOLBAR -->
+
+      <div class="pac-toolbar">
+
+        <div class="search-wrap pac-search-wrap">
+
+          <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.5 6.5 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+
+          <input class="search-input" id="pac-search-input" type="text" placeholder="Buscar por nombre, DNI o registro..." autocomplete="off">
+
+        </div>
+
+        <label class="pac-toolbar-meta">
+
+          <span>Mostrar</span>
+
+          <select id="pac-per-page" class="pac-toolbar-select">
+
+            <option value="5">5</option>
+
+            <option value="10" selected>10</option>
+
+            <option value="25">25</option>
+
+            <option value="50">50</option>
+
+          </select>
+
+          <span>por página</span>
+
+        </label>
+
+        <button class="btn btn-primary" id="pac-btn-nuevo">
+
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+
+          Nuevo Paciente
+
+        </button>
+
+      </div>
+
+
+
+      <!-- TABLE PANEL -->
+
+      <div class="card pac-table-card">
+
+        <div class="card-header pac-table-header">
+
+          <div class="card-title">👥 Pacientes registrados</div>
+
+          <div id="pac-table-info" class="pac-table-info">Cargando...</div>
+
+        </div>
+
+        <div class="pac-table-wrap">
+
+          <table class="pac-table">
+
+            <thead>
+
+              <tr>
+
+                <th>Registro</th>
+
+                <th>Nombre</th>
+
+                <th>DNI</th>
+
+                <th>Celular</th>
+
+                <th>Edad</th>
+
+                <th>Sexo</th>
+
+                <th>Acciones</th>
+
+              </tr>
+
+            </thead>
+
+            <tbody id="pac-tbody"></tbody>
+
+          </table>
+
+        </div>
+
+        <div id="pac-pagination" class="pac-pagination">
+
+          <div id="pac-pag-info" class="pac-pagination-info"></div>
+
+          <div id="pac-pag-controls" class="pac-pagination-controls"></div>
+
+        </div>
+
+      </div>
+
+
+
+      <!-- MODAL: NUEVO / EDITAR PACIENTE -->
+
+      <div id="pac-modal-form" class="pac-modal">
+
+        <div class="pac-modal-dialog form">
+
+          <div class="pac-modal-header">
+
+            <span class="pac-modal-heading" id="pac-modal-title">Nuevo Paciente</span>
+
+            <button id="pac-modal-close-form" class="pac-modal-close">✕</button>
+
+          </div>
+
+          <div class="pac-modal-body">
+
+            <div class="pac-form-grid">
+
+              <div class="pac-form-field">
+
+                <label class="pac-form-label" for="pac-f-registro">Nº Registro</label>
+
+                <input id="pac-f-registro" class="pac-form-input mono" type="text" placeholder="Ej: PAC-00001" maxlength="20">
+
+              </div>
+
+              <div class="pac-form-field">
+
+                <label class="pac-form-label" for="pac-f-dni">DNI / Cédula</label>
+
+                <input id="pac-f-dni" class="pac-form-input mono" type="text" placeholder="Ej: 12345678" maxlength="20">
+
+              </div>
+
+              <div class="pac-form-field full">
+
+                <label class="pac-form-label" for="pac-f-nombre">Nombre completo *</label>
+
+                <input id="pac-f-nombre" class="pac-form-input" type="text" placeholder="Ej: Juan Carlos Pérez López">
+
+              </div>
+
+              <div class="pac-form-field">
+
+                <label class="pac-form-label" for="pac-f-celular">Celular</label>
+
+                <input id="pac-f-celular" class="pac-form-input" type="tel" placeholder="Ej: +51 999 888 777">
+
+              </div>
+
+              <div class="pac-form-field">
+
+                <label class="pac-form-label" for="pac-f-edad">Edad *</label>
+
+                <input id="pac-f-edad" class="pac-form-input" type="number" placeholder="Ej: 35" min="1" max="149">
+
+              </div>
+
+              <div class="pac-form-field">
+
+                <label class="pac-form-label" for="pac-f-sexo">Sexo *</label>
+
+                <select id="pac-f-sexo" class="pac-form-select">
+
+                  <option value="">-- Selecciona --</option>
+
+                  <option value="M">Masculino</option>
+
+                  <option value="F">Femenino</option>
+
+                  <option value="O">Otro</option>
+
+                </select>
+
+              </div>
+
+            </div>
+
+            <div id="pac-modal-status" role="alert" class="pac-modal-status"></div>
+
+          </div>
+
+          <div class="pac-modal-footer">
+
+            <button class="btn btn-ghost" id="pac-modal-cancel-form">Cancelar</button>
+
+            <button class="btn btn-primary" id="pac-modal-save">Guardar</button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+
+      <!-- MODAL: CONFIRMAR ELIMINAR PACIENTE -->
+
+      <div id="pac-modal-confirm" class="pac-modal">
+
+        <div class="pac-modal-dialog confirm">
+
+          <div class="pac-modal-header">
+
+            <span class="pac-modal-heading">Eliminar paciente</span>
+
+            <button id="pac-modal-close-confirm" class="pac-modal-close">✕</button>
+
+          </div>
+
+          <div class="pac-confirm-body">
+
+            <div class="pac-confirm-icon">🗑️</div>
+
+            <div class="pac-confirm-title">¿Eliminar este paciente?</div>
+
+            <div id="pac-confirm-msg" class="pac-confirm-copy">Esta acción no se puede deshacer.</div>
+
+          </div>
+
+          <div class="pac-modal-footer">
+
+            <button class="btn btn-ghost" id="pac-confirm-cancel">Cancelar</button>
+
+            <button class="btn pac-btn-danger" id="pac-confirm-delete">Sí, eliminar</button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+
+    <!-- ══ CARGA DE RESULTADOS (inline completo) ══ -->
+
+    <div class="view" id="view-carga-resultados">
+
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-body" style="padding:18px 20px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;">
+            <div>
+              <div class="card-title">📤 Resultados: carga, consulta y cierre</div>
+              <div style="font-size:13px;color:var(--muted);margin-top:6px;">Administra archivos por orden, consulta resultados ya entregados y controla qué órdenes quedan completadas.</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <span style="font-size:12px;font-weight:700;color:#1e8449;background:#eafaf1;border:1px solid #a9dfbf;border-radius:999px;padding:7px 12px;">Carga múltiple por orden</span>
+              <span style="font-size:12px;font-weight:700;color:#1f618d;background:#ebf5fb;border:1px solid #aed6f1;border-radius:999px;padding:7px 12px;">Consulta integrada</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- TABS -->
+
+      <div style="display:flex;gap:4px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:4px;margin-bottom:16px;width:fit-content;">
+
+        <button id="res-tab-carga" onclick="resSwitchTab('carga')" style="display:flex;align-items:center;gap:6px;padding:7px 16px;border-radius:7px;font-size:13px;font-weight:700;font-family:inherit;border:none;cursor:pointer;background:white;color:var(--text);box-shadow:var(--shadow-sm);">
+
+          📤 Cargar y revisar
+        </button>
+
+        <button id="res-tab-completados" onclick="resSwitchTab('completados')" style="display:flex;align-items:center;gap:6px;padding:7px 16px;border-radius:7px;font-size:13px;font-weight:700;font-family:inherit;border:none;cursor:pointer;background:transparent;color:var(--muted);">
+
+          ✅ Resultados completados
+        </button>
+
+      </div>
+
+
+
+      <!-- SECCIÓN CARGA -->
+
+      <div id="res-section-carga">
+
+        <div class="two-col">
+
+          <div class="card">
+
+            <div class="card-header">
+
+              <div class="card-title">📋 Órdenes pendientes por resultados</div>
+              <span id="res-list-count" style="font-size:12px;color:var(--muted);font-weight:600;"></span>
+
+            </div>
+
+            <div class="card-body" style="padding-bottom:8px;">
+
+              <div class="search-wrap">
+
+                <svg viewBox="0 0 20 20"><path d="M12.9 14.32a8 8 0 1 1 1.41-1.41l5.35 5.33-1.42 1.42-5.34-5.34zM8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12z"/></svg>
+
+                <input class="search-input" id="res-search-paciente" type="text" placeholder="Buscar por nombre, folio, DNI…" autocomplete="off">
+
+              </div>
+
+              <div style="font-size:12px;color:var(--muted);margin:10px 0 12px;">Pendientes o en proceso. Selecciona una orden para adjuntar uno o varios archivos y marcarla como completada cuando esté lista.</div>
+
+              <div class="patient-list" id="res-patient-list"><div class="spinner"></div></div>
+            </div>
+
+          </div>
+
+          <div class="card" id="res-right-card">
+
+            <div class="right-empty" id="res-right-empty">
+
+              <div class="big-icon">🧪</div>
+
+              <div>Selecciona una orden para cargar archivos, revisar estudios y cerrar resultados</div>
+            </div>
+
+            <div id="res-orden-section" style="display:none;">
+
+              <div class="orden-info" id="res-orden-info"></div>
+
+              <div id="res-progress-wrap" style="padding:12px 18px;border-bottom:1px solid var(--border);"></div>
+
+              <div id="res-estudios-list" style="padding:16px 18px;display:flex;flex-direction:column;gap:10px;"></div>
+
+              <div style="position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:14px 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;box-shadow:0 -4px 16px rgba(0,0,0,0.06);">
+
+                <div id="res-save-summary" style="font-size:13px;color:var(--muted);font-weight:500;">—</div>
+
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <button class="btn btn-ghost" id="res-btn-clear-files" type="button">Limpiar cola</button>
+                  <button class="btn btn-primary" id="res-btn-save-all" type="button">💾 Guardar archivos</button>
+                  <button class="btn btn-primary" id="res-btn-mark-complete" type="button" style="background:#1e8449;">✅ Marcar completada</button>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+
+      <!-- SECCIÓN COMPLETADOS -->
+
+      <div id="res-section-completados" style="display:none;">
+
+        <div class="two-col">
+
+          <div class="card">
+
+            <div class="card-header">
+
+              <div class="card-title">✅ Órdenes con resultados completados</div>
+              <span id="res-comp-list-count" style="font-size:12px;color:var(--muted);font-weight:600;"></span>
+
+            </div>
+
+            <div class="card-body" style="padding-bottom:8px;">
+
+              <div class="search-wrap">
+
+                <svg viewBox="0 0 20 20"><path d="M12.9 14.32a8 8 0 1 1 1.41-1.41l5.35 5.33-1.42 1.42-5.34-5.34zM8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12z"/></svg>
+
+                <input class="search-input" id="res-search-completados" type="text" placeholder="Buscar por nombre, folio, DNI…" autocomplete="off">
+
+              </div>
+
+              <div style="font-size:12px;color:var(--muted);margin:10px 0 12px;">Consulta y descarga todos los archivos asociados a la orden. Si necesitas corregirla, puedes reabrirla para seguir cargando archivos.</div>
+
+              <div class="patient-list" id="res-comp-patient-list"><div class="spinner"></div></div>
+            </div>
+
+          </div>
+
+          <div class="card">
+
+            <div class="right-empty" id="res-comp-right-empty">
+
+              <div class="big-icon">📂</div>
+
+              <div>Selecciona una orden completada para consultar y descargar sus resultados</div>
+            </div>
+
+            <div id="res-comp-orden-section" style="display:none;">
+
+              <div class="orden-info" id="res-comp-orden-info"></div>
+
+              <div style="padding:0 18px 14px;display:flex;justify-content:flex-end;">
+                <button class="btn btn-ghost btn-sm" id="res-btn-reopen-order" type="button">↩ Reabrir para seguir cargando</button>
+              </div>
+              <div class="resultados-grid" id="res-comp-resultados-grid"></div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+
+    </div>
+
+    <div class="view" id="view-empresa">
+
+
+
+      <div class="emp-layout">
+
+
+
+        <!-- LOGO PANEL -->
+
+        <div class="emp-logo-panel card">
+
+          <div class="emp-logo-wrap">
+
+            <div class="emp-logo-preview" id="emp-logo-preview">
+
+              <span class="emp-logo-placeholder" id="emp-logo-placeholder">🔬</span>
+
+              <img id="emp-logo-img" alt="Logo empresa" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:50%;">
+
+            </div>
+
+            <label class="emp-logo-overlay" for="emp-logo-input" title="Cambiar logo">
+
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width:16px;height:16px;fill:white;">
+
+                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+
+              </svg>
+
+            </label>
+
+            <input type="file" id="emp-logo-input" accept="image/jpeg,image/png,image/webp,image/svg+xml" style="display:none;">
+
+          </div>
+
+          <div style="font-size:12px;color:var(--muted);line-height:1.5;text-align:center;">
+
+            Formatos: JPG, PNG, WebP, SVG<br>Tamaño máximo: 2 MB
+
+          </div>
+
+          <button class="emp-btn-remove" id="emp-btn-remove-logo" style="display:none;">✕ Quitar logo</button>
+
+        </div>
+
+
+
+        <!-- FORM PANEL -->
+
+        <div class="emp-form-panel card">
+
+          <div class="card-header">
+
+            <div class="card-title">📋 Información General</div>
+
+          </div>
+
+          <div class="card-body">
+
+            <div id="emp-loading" style="text-align:center;padding:20px 0;"><div class="spinner"></div></div>
+
+            <div id="emp-form-body" style="display:none;">
+
+              <div class="emp-form-grid">
+
+
+
+                <div class="emp-field full">
+
+                  <label class="emp-label" for="emp-nombre">Nombre de la empresa *</label>
+
+                  <input class="emp-input" id="emp-nombre" type="text" placeholder="Ej: Laboratorio Clínico San Rafael" maxlength="120" autocomplete="organization">
+
+                </div>
+
+
+
+                <div class="emp-field full">
+
+                  <label class="emp-label" for="emp-direccion">Dirección</label>
+
+                  <input class="emp-input" id="emp-direccion" type="text" placeholder="Ej: Av. Principal 123, Col. Centro" maxlength="200">
+
+                </div>
+
+
+
+                <div class="emp-field">
+
+                  <label class="emp-label" for="emp-ruc">RUC / NIT</label>
+
+                  <input class="emp-input emp-mono" id="emp-ruc" type="text" placeholder="Ej: 20123456789" maxlength="20">
+
+                </div>
+
+
+
+                <div class="emp-field">
+
+                  <label class="emp-label" for="emp-rfc">RFC</label>
+
+                  <input class="emp-input emp-mono" id="emp-rfc" type="text" placeholder="Ej: LAB-123456-AB7" maxlength="20">
+
+                </div>
+
+
+
+                <div class="emp-field">
+
+                  <label class="emp-label" for="emp-telefono">Teléfono</label>
+
+                  <input class="emp-input" id="emp-telefono" type="tel" placeholder="Ej: +52 55 1234 5678" maxlength="30">
+
+                </div>
+
+
+
+                <div class="emp-field">
+
+                  <label class="emp-label" for="emp-correo">Correo electrónico</label>
+
+                  <input class="emp-input" id="emp-correo" type="email" placeholder="Ej: contacto@lab.com" maxlength="100">
+
+                </div>
+
+
+
+              </div>
+
+
+
+              <p id="emp-status" role="alert" aria-live="polite" style="min-height:18px;margin-top:14px;font-size:13px;font-weight:600;text-align:right;"></p>
+
+
+
+              <div class="emp-actions">
+
+                <button class="btn btn-ghost" id="emp-btn-cancelar">Cancelar</button>
+
+                <button class="btn btn-primary" id="emp-btn-guardar">💾 Guardar cambios</button>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+
+        <!-- PREVIEW PANEL -->
+
+        <div class="emp-preview-panel card">
+
+          <div class="card-header"><div class="card-title">👁 Vista previa</div></div>
+
+          <div class="card-body">
+
+            <div class="emp-preview-card">
+
+              <div class="emp-preview-logo">
+
+                <span id="emp-prev-placeholder">🔬</span>
+
+                <img id="emp-prev-img" alt="Logo" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:50%;">
+
+              </div>
+
+              <div style="flex:1;min-width:180px;">
+
+                <div style="font-size:15px;font-weight:800;margin-bottom:6px;" id="emp-prev-nombre">Nombre de la empresa</div>
+
+                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;">
+
+                  <span class="emp-prev-detail"><span>📍</span><span id="emp-prev-dir">—</span></span>
+
+                  <span class="emp-prev-detail"><span>💼</span><span id="emp-prev-ruc">—</span></span>
+
+                  <span class="emp-prev-detail"><span>📄</span><span id="emp-prev-rfc">—</span></span>
+
+                  <span class="emp-prev-detail"><span>📞</span><span id="emp-prev-tel">—</span></span>
+
+                  <span class="emp-prev-detail"><span>✉</span><span id="emp-prev-correo">—</span></span>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+
+      </div>
+
+    </div>
+
+    <div class="view" id="view-usuarios">
+
+      <div class="two-col" style="grid-template-columns:minmax(360px,1.2fr) minmax(320px,0.8fr);align-items:start;">
+
+        <div class="card">
+
+          <div class="card-header">
+
+            <div>
+
+              <div class="card-title">👤 Usuarios y permisos</div>
+
+              <div style="font-size:12px;color:var(--muted);margin-top:4px;">Administra roles y permisos efectivos desde el dashboard.</div>
+
+            </div>
+
+            <button class="btn btn-primary btn-sm" id="usr-btn-refresh">Actualizar</button>
+
+          </div>
+
+          <div class="card-body">
+
+            <div id="usr-status" style="min-height:18px;font-size:12px;font-weight:700;margin-bottom:12px;"></div>
+
+            <div id="usr-table-wrap"><div class="spinner"></div></div>
+
+          </div>
+
+        </div>
+
+        <div class="card">
+
+          <div class="card-header">
+
+            <div class="card-title" id="usr-form-title">➕ Nuevo usuario</div>
+
+            <button class="btn btn-ghost btn-sm" id="usr-btn-reset">Limpiar</button>
+
+          </div>
+
+          <div class="card-body">
+
+            <div style="display:grid;gap:12px;">
+
+              <div class="form-field">
+
+                <label>Usuario</label>
+
+                <input id="usr-usuario" type="text" class="search-input" style="padding-left:12px;" maxlength="60" autocomplete="username">
+
+              </div>
+
+              <div class="form-field">
+
+                <label>Contraseña</label>
+
+                <input id="usr-password" type="password" class="search-input" style="padding-left:12px;" placeholder="Opcional al editar" autocomplete="new-password">
+
+              </div>
+
+              <div class="form-field">
+
+                <label>Rol base</label>
+
+                <select id="usr-role" class="search-input" style="padding-left:12px;"></select>
+
+              </div>
+
+              <div class="form-field">
+
+                <label>Permisos</label>
+
+                <div id="usr-permissions" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;max-height:280px;overflow:auto;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:#f8fafc;"></div>
+
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+
+                  <button class="btn btn-ghost btn-sm" id="usr-btn-defaults" type="button">Usar permisos del rol</button>
+
+                  <span id="usr-perm-hint" style="font-size:12px;color:var(--muted);align-self:center;"></span>
+
+                </div>
+
+              </div>
+
+              <div id="usr-form-status" style="min-height:18px;font-size:12px;font-weight:700;"></div>
+
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+
+                <button class="btn btn-primary" id="usr-btn-save">Guardar usuario</button>
+
+                <button class="btn btn-ghost" id="usr-btn-delete" style="display:none;">Eliminar</button>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+     <section id="view-caja" class="view dashboard-view cj-view">
+       <div id="cj-host">
+         <div class="cj-loading-shell">
+           <div class="big">🏧</div>
+           <div>Cargando módulo de caja…</div>
+         </div>
+       </div>
+     </section>
+
+  
+
+    </div>
+
+</div>
+
+
+
+
+
+<!-- MODAL NUEVA / EDITAR CITA -->
+
+<div class="modal-overlay" id="modal-cita" style="z-index:3000;">
+
+  <div class="modal-box" style="max-width:560px;max-height:92vh;overflow-y:auto;">
+
+    <button class="modal-close" onclick="cerrarModalCita()">✕</button>
+
+    <div class="modal-title" id="mc-title">📅 Nueva cita</div>
+
+    <div class="modal-err" id="mc-err"></div>
+
+
+
+    <div class="mc-grid">
+
+      <div class="form-field mc-full">
+
+        <label>Nombre del paciente *</label>
+
+        <input id="mc-pac-nombre" type="text" placeholder="Nombre completo" autocomplete="off">
+
+      </div>
+
+      <div class="form-field">
+
+        <label>DNI / Cédula</label>
+
+        <input id="mc-pac-dni" type="text" placeholder="Opcional" autocomplete="off">
+
+      </div>
+
+      <div class="form-field">
+
+        <label>Celular</label>
+
+        <input id="mc-pac-cel" type="tel" placeholder="Opcional">
+
+      </div>
+
+
+
+      <div class="form-field">
+
+        <label>Sucursal *</label>
+
+        <select id="mc-sucursal" onchange="mcCargarTecnicos();mcCargarSlots();">
+
+          <option value="CDC">CDC</option>
+
+          <option value="NTE">Norte</option>
+
+          <option value="SUR">Sur</option>
+
+        </select>
+
+      </div>
+
+      <div class="form-field">
+
+        <label>Técnico</label>
+
+        <select id="mc-tecnico" onchange="mcCargarSlots()">
+
+          <option value="">Sin asignar</option>
+
+        </select>
+
+      </div>
+
+
+
+      <div class="form-field">
+
+        <label>Fecha *</label>
+
+        <input id="mc-fecha" type="date" onchange="mcCargarSlots()">
+
+      </div>
+
+      <div class="form-field">
+
+        <label>Duración</label>
+
+        <select id="mc-duracion" onchange="mcCargarSlots()">
+
+          <option value="15">15 min</option>
+
+          <option value="30" selected>30 min</option>
+
+          <option value="45">45 min</option>
+
+          <option value="60">1 hora</option>
+
+          <option value="90">1.5 horas</option>
+
+          <option value="120">2 horas</option>
+
+        </select>
+
+      </div>
+
+
+
+      <div class="form-field mc-full">
+
+        <label>Horario disponible *</label>
+
+        <div id="mc-slots-wrap">
+
+          <div class="mc-slot-loading">Selecciona fecha y sucursal para ver horarios</div>
+
+        </div>
+
+        <input type="hidden" id="mc-hora-inicio">
+
+        <input type="hidden" id="mc-hora-fin">
+
+      </div>
+
+
+
+      <div class="form-field mc-full">
+
+        <label>Estudios / Análisis</label>
+
+        <div id="mc-estudios-lista" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;max-height:140px;overflow-y:auto;"></div>
+
+      </div>
+
+
+
+      <div class="form-field mc-full">
+
+        <label>Notas</label>
+
+        <input id="mc-notas" type="text" placeholder="Indicaciones, observaciones…">
+
+      </div>
+
+    </div>
+
+
+
+    <div class="modal-footer">
+
+      <button class="btn btn-ghost" onclick="cerrarModalCita()">Cancelar</button>
+
+      <button class="btn btn-primary" id="mc-btn-save" onclick="guardarCita()">💾 Guardar cita</button>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+
+<!-- MODAL DETALLE CITA -->
+
+<div class="modal-overlay" id="modal-cita-detalle" style="z-index:3000;">
+
+  <div class="modal-box" style="max-width:480px;">
+
+    <button class="modal-close" onclick="cerrarModalDetalle()">✕</button>
+
+    <div class="modal-title" id="cd-title">📋 Detalle de cita</div>
+
+
+
+    <div class="cd-info" id="cd-info"></div>
+
+
+
+    <div style="margin-bottom:14px;">
+
+      <div class="form-field" style="margin-bottom:0;">
+
+        <label>Cambiar estado</label>
+
+        <div style="display:flex;gap:8px;margin-top:6px;">
+
+          <select class="cd-estado-sel" id="cd-estado-sel">
+
+            <option value="programada">⏳ Programada</option>
+
+            <option value="confirmada">✅ Confirmada</option>
+
+            <option value="en_curso">🔬 En curso</option>
+
+            <option value="completada">✔ Completada</option>
+
+            <option value="no_asistio">🚫 No asistió</option>
+
+            <option value="cancelada">❌ Cancelada</option>
+
+          </select>
+
+          <button class="btn btn-secondary btn-sm" onclick="cambiarEstadoCita()">Aplicar</button>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+
+    <div class="cd-actions">
+
+      <button class="btn btn-primary btn-sm" id="cd-btn-orden" onclick="crearOrdenDesdeCita()">🧾 Crear orden</button>
+
+      <button class="btn btn-ghost btn-sm" onclick="editarCitaActual()">✏️ Editar</button>
+
+      <button class="btn btn-sm" style="background:#fdedec;color:#922b21;border:1px solid #f5b7b1;" onclick="cancelarCitaActual()">❌ Cancelar cita</button>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+
+<!-- MODAL BLOQUEO -->
+
+<div class="modal-overlay" id="modal-bloqueo" style="z-index:3000;">
+
+  <div class="modal-box" style="max-width:400px;">
+
+    <button class="modal-close" onclick="cerrarModalBloqueo()">✕</button>
+
+    <div class="modal-title">🚫 Bloquear horario</div>
+
+    <div class="modal-err" id="blq-err"></div>
+
+
+
+    <div class="form-field">
+
+      <label>Sucursal *</label>
+
+      <select id="blq-suc">
+
+        <option value="CDC">CDC</option>
+
+        <option value="NTE">Norte</option>
+
+        <option value="SUR">Sur</option>
+
+      </select>
+
+    </div>
+
+    <div class="mc-grid" style="gap:10px;">
+
+      <div class="form-field">
+
+        <label>Fecha *</label>
+
+        <input id="blq-fecha" type="date">
+
+      </div>
+
+      <div class="form-field">
+
+        <label>Técnico (opc.)</label>
+
+        <select id="blq-tec">
+
+          <option value="">Todos</option>
+
+        </select>
+
+      </div>
+
+      <div class="form-field">
+
+        <label>Hora inicio *</label>
+
+        <input id="blq-ini" type="time" value="12:00">
+
+      </div>
+
+      <div class="form-field">
+
+        <label>Hora fin *</label>
+
+        <input id="blq-fin" type="time" value="13:00">
+
+      </div>
+
+    </div>
+
+    <div class="form-field">
+
+      <label>Motivo</label>
+
+      <input id="blq-motivo" type="text" placeholder="Ej: Almuerzo, mantenimiento…">
+
+    </div>
+
+    <div class="modal-footer">
+
+      <button class="btn btn-ghost" onclick="cerrarModalBloqueo()">Cancelar</button>
+
+      <button class="btn btn-primary" onclick="guardarBloqueo()">🚫 Bloquear</button>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+
+<!-- MODAL CREAR / EDITAR ESTUDIO -->
+
+<div class="modal-overlay" id="modal-estudio">
+
+  <div class="modal-box">
+
+    <button class="modal-close" onclick="cerrarModalEstudio()">✕</button>
+
+    <div class="modal-title" id="modal-estudio-title">🧪 Nuevo estudio</div>
+
+    <div class="modal-err" id="modal-err"></div>
+
+
+
+    <div class="form-field">
+
+      <label for="me-nombre">Nombre del estudio *</label>
+
+      <input id="me-nombre" type="text" placeholder="Ej: Glucosa en ayunas" autocomplete="off">
+
+    </div>
+
+    <div class="form-field">
+
+      <label for="me-precio">Precio (MXN) *</label>
+
+      <input id="me-precio" type="number" min="0" step="0.01" placeholder="Ej: 150">
+
+    </div>
+
+    <div class="form-field">
+
+      <label for="me-categoria">Categoría *</label>
+
+      <select id="me-categoria"></select>
+
+    </div>
+
+    <div class="form-field">
+      <label for="me-subcategoria">Subcategoría</label>
+      <input id="me-subcategoria" type="text" placeholder="Ej: Hormonas tiroideas, coagulación, infecciosas">
+    </div>
+
+    <div class="form-field">
+      <label for="me-clave-externa">Clave externa</label>
+      <input id="me-clave-externa" type="text" placeholder="Ej: 2109" autocomplete="off">
+    </div>
+
+    <div class="form-field">
+      <label for="me-nombre-corto">Nombre corto</label>
+      <input id="me-nombre-corto" type="text" placeholder="Ej: QS 6, BHC, TSH" autocomplete="off">
+    </div>
+
+    <div class="form-field">
+      <label for="me-sinonimos">Sinónimos de búsqueda</label>
+      <input id="me-sinonimos" type="text" placeholder="Ej: TGP, ALT, alanina aminotransferasa">
+    </div>
+
+    <div class="form-field">
+      <label for="me-tipo-muestra">Tipo de muestra</label>
+      <input id="me-tipo-muestra" type="text" placeholder="Ej: Suero, sangre total, orina">
+    </div>
+
+    <div class="form-field">
+      <label for="me-tipo-tubo">Tipo de tubo</label>
+      <input id="me-tipo-tubo" type="text" placeholder="Ej: Tubo seco, EDTA, citrato">
+    </div>
+
+    <div class="form-field">
+      <label for="me-color-tapa">Color de tapa</label>
+      <input id="me-color-tapa" type="text" placeholder="Ej: Rojo, lila, azul">
+    </div>
+
+    <div class="form-field">
+      <label for="me-tubos-requeridos">Tubos requeridos *</label>
+      <input id="me-tubos-requeridos" type="number" min="1" step="1" value="1">
+    </div>
+
+    <div class="form-field">
+      <label for="me-area-proceso">Área / proceso</label>
+      <input id="me-area-proceso" type="text" placeholder="Ej: Química clínica, hematología">
+    </div>
+
+    <div class="form-field">
+      <label for="me-comparte-tubo">Compartir tubo</label>
+      <select id="me-comparte-tubo">
+        <option value="0">No</option>
+        <option value="1">Sí</option>
+      </select>
+    </div>
+
+
+    <div class="form-field">
+
+      <label for="me-indicaciones" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);display:block;margin-bottom:5px;">
+
+        Indicaciones al paciente
+
+      </label>
+
+      <textarea
+
+        id="me-indicaciones"
+
+        rows="3"
+
+        placeholder="Ej: Ayuno de 8 horas, no consumir alcohol 24h antes, etc."
+
+        style="width:100%;padding:9px 13px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;outline:none;background:var(--bg);color:var(--text);resize:vertical;transition:border-color 0.2s;"
+
+        onfocus="this.style.borderColor='var(--green)'"
+
+        onblur="this.style.borderColor='var(--border)'"
+
+      ></textarea>
+
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;">Opcional — se imprimirá en el ticket de pago del cliente</div>
+
+    </div>
+
+
+
+    <div class="modal-footer">
+
+      <button class="btn btn-ghost" onclick="cerrarModalEstudio()">Cancelar</button>
+
+      <button class="btn btn-primary" id="btn-guardar-estudio" onclick="guardarEstudio()">💾 Guardar</button>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+
+<!-- MODAL CONFIRMAR ELIMINAR -->
+
+<div class="modal-overlay" id="modal-confirm">
+
+  <div class="modal-box" style="max-width:380px;">
+
+    <div class="modal-title">🗑️ Eliminar estudio</div>
+
+    <p class="confirm-msg" id="confirm-msg">¿Eliminar este estudio?</p>
+
+    <p class="confirm-sub" id="confirm-sub"></p>
+
+    <div class="modal-footer">
+
+      <button class="btn btn-ghost" onclick="cerrarModalConfirm()">Cancelar</button>
+
+      <button class="btn btn-danger" id="btn-confirm-del" onclick="confirmarEliminar()">🗑️ Eliminar</button>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+
+<!-- VIEWER MODAL -->
+
+<div id="viewer-modal">
+
+  <div class="viewer-box">
+
+    <div class="viewer-hd">
+
+      <div class="viewer-title" id="viewer-title">—</div>
+
+      <div class="viewer-btns">
+
+        <a class="btn-vdl" id="viewer-dl" href="#" download target="_blank" rel="noopener">⬇️ Descargar</a>
+
+        <button class="btn-vclose" onclick="cerrarViewer()">✕ Cerrar</button>
+
+      </div>
+
+    </div>
+
+    <div class="viewer-body" id="viewer-body"></div>
+
+  </div>
+
+</div>
+
+
+
+<!-- VIEWER MODAL RESULTADOS -->
+
+<div id="res-viewer-modal" role="dialog" aria-modal="true" aria-label="Visor de resultado">
+
+  <div class="res-viewer-box">
+
+    <div class="res-viewer-header">
+
+      <div class="res-viewer-title" id="res-viewer-title">—</div>
+
+      <div class="res-viewer-toolbar">
+
+        <a class="btn btn-primary btn-sm" id="res-viewer-dl-btn" href="#" download target="_blank" rel="noopener">⬇️ Descargar</a>
+
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('res-viewer-modal').classList.remove('open');document.getElementById('res-viewer-body').innerHTML='';">✕ Cerrar</button>
+
+      </div>
+
+    </div>
+
+    <div class="res-viewer-body" id="res-viewer-body"></div>
+
+  </div>
+
+</div>
+
+
+
+<div id="toast"></div>
+
+
+
+<script src="/dashboard.js"></script>
+
+<script src="/dashboard-buscar.js"></script>
+
+<script src="/dashboard-catalogo.js"></script>
+
+<script src="/dashboard-pacientes.js"></script>
+
+<script src="/dashboard-caja.js"></script>
+
+<script src="/nueva-orden.js"></script>
+
+</body>
+
+</html>
+
+
+
+
+
+
+
+
+

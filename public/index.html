@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SIS Laboratorio — Acceso</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --green:      #2ecc71;
+      --green-dark: #27ae60;
+      --green-bg:   #eafaf1;
+      --red:        #e74c3c;
+      --text:       #1a202c;
+      --muted:      #718096;
+      --border:     #e2e8f0;
+      --bg:         #f0f2f5;
+      --surface:    #ffffff;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', Arial, sans-serif;
+      background: var(--bg);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    /* ── SPLIT LAYOUT ── */
+    .wrapper {
+      display: flex;
+      width: 100%;
+      max-width: 860px;
+      min-height: 520px;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+    }
+
+    /* ── LEFT PANEL ── */
+    .panel-left {
+      flex: 1;
+      background: linear-gradient(145deg, #111827 0%, #1a2f1a 60%, #1e3a2a 100%);
+      padding: 48px 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Decorative circles */
+    .panel-left::before {
+      content: '';
+      position: absolute;
+      width: 300px; height: 300px;
+      border-radius: 50%;
+      border: 1px solid rgba(46,204,113,0.12);
+      top: -80px; left: -80px;
+    }
+
+    .panel-left::after {
+      content: '';
+      position: absolute;
+      width: 200px; height: 200px;
+      border-radius: 50%;
+      border: 1px solid rgba(46,204,113,0.08);
+      bottom: 40px; right: -60px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .brand-icon {
+      width: 44px; height: 44px;
+      background: var(--green);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+      box-shadow: 0 4px 14px rgba(46,204,113,0.35);
+    }
+
+    .brand-name {
+      font-size: 15px;
+      font-weight: 800;
+      color: white;
+      letter-spacing: -0.3px;
+      line-height: 1.2;
+    }
+
+    .brand-sub {
+      font-size: 11px;
+      color: rgba(255,255,255,0.4);
+      font-weight: 500;
+    }
+
+    .panel-left-body {
+      position: relative;
+      z-index: 1;
+    }
+
+    .panel-left-body h1 {
+      font-size: 1.9rem;
+      font-weight: 800;
+      color: white;
+      letter-spacing: -0.5px;
+      line-height: 1.2;
+      margin-bottom: 14px;
+    }
+
+    .panel-left-body h1 span {
+      color: var(--green);
+    }
+
+    .panel-left-body p {
+      font-size: 13px;
+      color: rgba(255,255,255,0.5);
+      line-height: 1.6;
+      max-width: 260px;
+    }
+
+    .features {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .feature-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.5);
+    }
+
+    .feature-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      flex-shrink: 0;
+    }
+
+    /* ── RIGHT PANEL ── */
+    .panel-right {
+      width: 380px;
+      flex-shrink: 0;
+      background: var(--surface);
+      padding: 48px 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .form-header {
+      margin-bottom: 32px;
+    }
+
+    .form-header h2 {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -0.4px;
+      margin-bottom: 5px;
+    }
+
+    .form-header p {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    /* ── FIELDS ── */
+    .field {
+      margin-bottom: 16px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    .input-wrap input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 14px;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--bg);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+
+    .input-wrap input:focus {
+      border-color: var(--green);
+      background: white;
+      box-shadow: 0 0 0 3px rgba(46,204,113,0.12);
+    }
+
+    .input-wrap input::placeholder { color: #a0aec0; }
+
+    /* Password toggle */
+    .toggle-pass {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 16px;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      transition: color 0.15s;
+      width: auto;
+      margin: 0;
+      border-radius: 4px;
+    }
+
+    .toggle-pass:hover { color: var(--text); }
+
+    #pass { padding-right: 42px; }
+
+    /* ── BUTTON ── */
+    .btn-login {
+      width: 100%;
+      padding: 13px;
+      margin-top: 8px;
+      background: var(--green);
+      border: none;
+      color: white;
+      font-size: 14px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      border-radius: 10px;
+      transition: background 0.2s, transform 0.12s, opacity 0.2s;
+      letter-spacing: 0.2px;
+    }
+
+    .btn-login:hover:not(:disabled) { background: var(--green-dark); }
+    .btn-login:active:not(:disabled) { transform: scale(0.98); }
+    .btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* ── MESSAGE ── */
+    #msg {
+      margin-top: 14px;
+      font-size: 13px;
+      font-weight: 600;
+      min-height: 18px;
+      text-align: center;
+      border-radius: 8px;
+      padding: 0;
+      transition: all 0.2s;
+    }
+
+    #msg.error {
+      color: var(--red);
+      background: #fdf2f0;
+      padding: 10px 14px;
+    }
+
+    #msg.success {
+      color: var(--green-dark);
+      background: var(--green-bg);
+      padding: 10px 14px;
+    }
+
+    /* ── FOOTER ── */
+    .form-footer {
+      margin-top: 28px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 700px) {
+      .wrapper {
+        flex-direction: column;
+        max-width: 400px;
+        min-height: auto;
+        border-radius: 16px;
+      }
+
+      .panel-left {
+        padding: 28px 24px;
+        min-height: auto;
+      }
+
+      .panel-left-body h1 { font-size: 1.4rem; }
+      .panel-left-body p  { display: none; }
+      .features           { display: none; }
+
+      .panel-right {
+        width: 100%;
+        padding: 28px 24px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="wrapper">
+
+  <!-- LEFT -->
+  <div class="panel-left">
+    <div class="brand">
+      <div class="brand-icon">🔬</div>
+      <div>
+        <div class="brand-name">SIS Laboratorio</div>
+        <div class="brand-sub">Sistema de Gestión</div>
+      </div>
+    </div>
+
+    <div class="panel-left-body">
+      <h1>Gestión clínica <span>inteligente</span></h1>
+      <p>Administra órdenes, resultados, pacientes y caja desde un solo lugar.</p>
+    </div>
+
+    <div class="features">
+      <div class="feature-item">
+        <div class="feature-dot"></div>
+        Órdenes y resultados de laboratorio
+      </div>
+      <div class="feature-item">
+        <div class="feature-dot"></div>
+        Gestión de pacientes y agenda
+      </div>
+      <div class="feature-item">
+        <div class="feature-dot"></div>
+        Sistema de caja y cortes de día
+      </div>
+      <div class="feature-item">
+        <div class="feature-dot"></div>
+        Proformas y reportes
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="panel-right">
+    <div class="form-header">
+      <h2 id="form-title">Bienvenido</h2>
+      <p id="form-subtitle">Ingresa tus credenciales para continuar</p>
+    </div>
+
+    <div class="field">
+      <label for="user">Usuario</label>
+      <div class="input-wrap">
+        <input
+          id="user"
+          type="text"
+          placeholder="Tu usuario"
+          autocomplete="username"
+          maxlength="60"
+          autofocus
+        >
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="pass">Contraseña</label>
+      <div class="input-wrap">
+        <input
+          id="pass"
+          type="password"
+          placeholder="Tu contraseña"
+          autocomplete="current-password"
+          maxlength="100"
+        >
+        <button class="toggle-pass" id="toggle-pass" type="button" tabindex="-1" title="Mostrar/ocultar contraseña">
+          👁
+        </button>
+      </div>
+    </div>
+
+    <div class="field" id="confirm-field" style="display:none;">
+      <label for="pass-confirm">Confirmar contraseña</label>
+      <div class="input-wrap">
+        <input
+          id="pass-confirm"
+          type="password"
+          placeholder="Repite la contraseña"
+          autocomplete="new-password"
+          maxlength="100"
+        >
+      </div>
+    </div>
+
+    <button class="btn-login" id="btn-login">Entrar</button>
+
+    <p id="msg" role="alert" aria-live="polite"></p>
+
+    <div class="form-footer">
+      Sistema de uso interno — acceso restringido
+    </div>
+  </div>
+
+</div>
+
+<script>
+  /* =========================
+     REDIRECT IF ALREADY LOGGED IN
+  ========================= */
+  const existingToken = sessionStorage.getItem('token');
+  if (existingToken && existingToken !== 'undefined') {
+    window.location.replace('/dashboard.html');
+  }
+
+  /* =========================
+     ELEMENTS
+  ========================= */
+  const userInput  = document.getElementById('user');
+  const passInput  = document.getElementById('pass');
+  const passConfirmInput = document.getElementById('pass-confirm');
+  const btnLogin   = document.getElementById('btn-login');
+  const togglePass = document.getElementById('toggle-pass');
+  const msg        = document.getElementById('msg');
+  const confirmField = document.getElementById('confirm-field');
+  const formTitle = document.getElementById('form-title');
+  const formSubtitle = document.getElementById('form-subtitle');
+  let setupMode = false;
+
+  /* =========================
+     SHOW / HIDE PASSWORD
+  ========================= */
+  togglePass.addEventListener('click', () => {
+    const isPassword = passInput.type === 'password';
+    passInput.type   = isPassword ? 'text' : 'password';
+    togglePass.textContent = isPassword ? '🙈' : '👁';
+  });
+
+  /* =========================
+     ENTER KEY
+  ========================= */
+  [userInput, passInput].forEach(input => {
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') login();
+    });
+  });
+  passConfirmInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') login();
+  });
+
+  btnLogin.addEventListener('click', login);
+
+  /* =========================
+     MESSAGE
+  ========================= */
+  function setMessage(text, type = 'error') {
+    msg.textContent = text;
+    msg.className   = type;
+  }
+
+  async function loadBootstrapStatus() {
+    try {
+      const res = await fetch('/api/bootstrap/status');
+      if (!res.ok) return;
+
+      const data = await res.json();
+      setupMode = !!data.needsSetup;
+      if (!setupMode) return;
+
+      confirmField.style.display = 'block';
+      formTitle.textContent = 'Configuración inicial';
+      formSubtitle.textContent = 'Crea el primer usuario administrador para entrar al sistema';
+      btnLogin.textContent = 'Crear administrador';
+      userInput.placeholder = 'Usuario administrador';
+      passInput.placeholder = 'Mínimo 10 caracteres';
+      passInput.autocomplete = 'new-password';
+      setMessage('No hay usuarios registrados todavía. Crea el primer administrador.', 'success');
+    } catch (err) {
+      console.error('Bootstrap status error:', err);
+    }
+  }
+
+  /* =========================
+     LOGIN
+  ========================= */
+  async function login() {
+    const usuario  = userInput.value.trim();
+    const password = passInput.value;
+    const passwordConfirm = passConfirmInput.value;
+
+    setMessage('');
+
+    if (!usuario || !password || (setupMode && !passwordConfirm)) {
+      setMessage('Completa todos los campos');
+      return;
+    }
+    if (setupMode && password !== passwordConfirm) {
+      setMessage('Las contraseñas no coinciden');
+      return;
+    }
+    if (setupMode && password.length < 10) {
+      setMessage('La contraseña debe tener al menos 10 caracteres');
+      return;
+    }
+
+    btnLogin.disabled    = true;
+    btnLogin.textContent = setupMode ? 'Creando...' : 'Verificando...';
+
+    try {
+      const res = await fetch(setupMode ? '/api/bootstrap-admin' : '/api/login', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ usuario, password })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMessage(data.error || 'Credenciales incorrectas');
+        return;
+      }
+
+      sessionStorage.setItem('token', data.token);
+      sessionStorage.setItem('role',  data.role);
+      sessionStorage.setItem('permissions', JSON.stringify(Array.isArray(data.permissions) ? data.permissions : []));
+      sessionStorage.setItem('tokenIssuedAt', String(Date.now()));
+
+      setMessage(setupMode ? 'Administrador creado, redirigiendo...' : 'Acceso correcto, redirigiendo...', 'success');
+
+      setTimeout(() => {
+        window.location.replace('/dashboard.html');
+      }, 500);
+
+    } catch (err) {
+      console.error('Login error:', err);
+      setMessage('No se pudo conectar con el servidor');
+    } finally {
+      if (msg.classList.contains('error')) {
+        btnLogin.disabled    = false;
+        btnLogin.textContent = setupMode ? 'Crear administrador' : 'Entrar';
+      }
+    }
+  }
+
+  loadBootstrapStatus();
+</script>
+
+</body>
+</html>
