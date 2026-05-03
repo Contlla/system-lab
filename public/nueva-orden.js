@@ -52,6 +52,7 @@
        HELPERS
     â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
     function logout() {
+      if (window.LabApi?.logout) return window.LabApi.logout();
       sessionStorage.removeItem('token');
       sessionStorage.removeItem('role');
       window.location.replace('/index.html');
@@ -118,6 +119,7 @@
     }
     
     async function apiFetch(url, options = {}) {
+      if (window.LabApi?.apiFetch) return window.LabApi.apiFetch(url, options);
       const res = await fetch(url, options);
       if (res.status === 401 || res.status === 403) { logout(); return null; }
       return res;

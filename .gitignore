@@ -3,3 +3,8 @@
 *.log
 .vscode/
 dist/
+certs/
+*.pem
+storage/resultados/
+database/*.db
+public/uploads/resultados/

@@ -37,6 +37,91 @@ function migrateColumn(sql, description = '') {
   });
 }
 
+function dropColumnIfExists(table, column, description = '') {
+  const safeTable = String(table || '').replace(/[^A-Za-z0-9_]/g, '');
+  const safeColumn = String(column || '').replace(/[^A-Za-z0-9_]/g, '');
+  if (!safeTable || !safeColumn) return;
+
+  db.all(`PRAGMA table_info(${safeTable})`, (err, columns = []) => {
+    if (err) {
+      console.error(`Error en migracion (${description || `${safeTable}.${safeColumn}`}): ${err.message}`);
+      return;
+    }
+    if (!columns.some((col) => col.name === safeColumn)) return;
+    db.run(`ALTER TABLE ${safeTable} DROP COLUMN ${safeColumn}`, (dropErr) => {
+      if (dropErr) {
+        console.error(`Error en migracion (${description || `${safeTable}.${safeColumn}`}): ${dropErr.message}`);
+      }
+    });
+  });
+}
+
+function clearColumnIfExists(table, column, description = '') {
+  const safeTable = String(table || '').replace(/[^A-Za-z0-9_]/g, '');
+  const safeColumn = String(column || '').replace(/[^A-Za-z0-9_]/g, '');
+  if (!safeTable || !safeColumn) return;
+
+  db.all(`PRAGMA table_info(${safeTable})`, (err, columns = []) => {
+    if (err) {
+      console.error(`Error en migracion (${description || `${safeTable}.${safeColumn}`}): ${err.message}`);
+      return;
+    }
+    if (!columns.some((col) => col.name === safeColumn)) return;
+    db.run(`UPDATE ${safeTable} SET ${safeColumn} = NULL`, (clearErr) => {
+      if (clearErr) {
+        console.error(`Error en migracion (${description || `${safeTable}.${safeColumn}`}): ${clearErr.message}`);
+      }
+    });
+  });
+}
+
+function backfillRegistrosPacientes() {
+  const year = new Date().getFullYear();
+  const prefix = `PAC-${year}-`;
+
+  db.serialize(() => {
+    db.get(
+      `SELECT MAX(CAST(SUBSTR(registro, LENGTH(?)+1) AS INTEGER)) AS ultimo
+       FROM pacientes
+       WHERE registro LIKE ?`,
+      [prefix, `${prefix}%`],
+      (maxErr, row) => {
+        if (maxErr) {
+          console.error(`Error en migracion (pacientes_backfill_registro_max): ${maxErr.message}`);
+          return;
+        }
+
+        let siguiente = Number(row?.ultimo || 0) + 1;
+        db.all(
+          `SELECT id FROM pacientes
+           WHERE registro IS NULL OR TRIM(registro) = '' OR TRIM(registro) = '-'
+           ORDER BY id ASC`,
+          (listErr, pacientes = []) => {
+            if (listErr) {
+              console.error(`Error en migracion (pacientes_backfill_registro_list): ${listErr.message}`);
+              return;
+            }
+
+            pacientes.forEach((paciente) => {
+              const registro = `${prefix}${String(siguiente).padStart(4, '0')}`;
+              siguiente += 1;
+              db.run(
+                `UPDATE pacientes SET registro = ?, updated_at = COALESCE(updated_at, datetime('now')) WHERE id = ?`,
+                [registro, paciente.id],
+                (updateErr) => {
+                  if (updateErr) {
+                    console.error(`Error en migracion (pacientes_backfill_registro_update): ${updateErr.message}`);
+                  }
+                }
+              );
+            });
+          }
+        );
+      }
+    );
+  });
+}
+
 const SEED_CATEGORIA_MAP = Object.freeze({
   BIOQUIMICA: 'BIOQUÍMICA',
   BIOLOGIA_MOLECULAR: 'BIOLOGÍA MOLECULAR',
@@ -169,6 +254,33 @@ db.serialize(async () => {
   ddl(`CREATE INDEX IF NOT EXISTS idx_pagos_fecha ON pagos(fecha)`,    'idx_pagos_fecha');
 
   /* =========================
+    SESIONES DE CAJA
+  ========================= */
+  ddl(`
+    CREATE TABLE IF NOT EXISTS sesiones_caja (
+      id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+      estado                  TEXT    NOT NULL DEFAULT 'abierta' CHECK(estado IN ('abierta','cerrada')),
+      cajero_apertura         TEXT    NOT NULL,
+      cajero_cierre           TEXT,
+      fecha_apertura          TEXT    NOT NULL DEFAULT (datetime('now')),
+      fecha_cierre            TEXT,
+      saldo_inicial           REAL    NOT NULL DEFAULT 0,
+      saldo_cierre            REAL,
+      observaciones_apertura  TEXT,
+      observaciones_cierre    TEXT,
+      created_at              TEXT    NOT NULL DEFAULT (datetime('now')),
+      updated_at              TEXT    NOT NULL DEFAULT (datetime('now'))
+    )
+  `, 'sesiones_caja');
+
+  ddl(`CREATE INDEX IF NOT EXISTS idx_sesiones_caja_estado ON sesiones_caja(estado)`, 'idx_sesiones_caja_estado');
+  ddl(`CREATE INDEX IF NOT EXISTS idx_sesiones_caja_fecha_apertura ON sesiones_caja(fecha_apertura)`, 'idx_sesiones_caja_fecha_apertura');
+  ddl(`CREATE UNIQUE INDEX IF NOT EXISTS idx_sesiones_caja_abierta_unique ON sesiones_caja(estado) WHERE estado = 'abierta'`, 'idx_sesiones_caja_abierta_unique');
+
+  migrateColumn(`ALTER TABLE pagos ADD COLUMN sesion_caja_id INTEGER`, 'pagos_add_sesion_caja_id');
+  ddl(`CREATE INDEX IF NOT EXISTS idx_pagos_sesion_caja ON pagos(sesion_caja_id)`, 'idx_pagos_sesion_caja');
+
+  /* =========================
     CORTES DE CAJA
   ========================= */
   ddl(`
@@ -185,6 +297,9 @@ db.serialize(async () => {
       observaciones   TEXT
     )
   `, 'cortes');
+
+  migrateColumn(`ALTER TABLE cortes ADD COLUMN sesion_caja_id INTEGER`, 'cortes_add_sesion_caja_id');
+  ddl(`CREATE INDEX IF NOT EXISTS idx_cortes_sesion_caja ON cortes(sesion_caja_id)`, 'idx_cortes_sesion_caja');
 
   /* =========================
      USUARIOS
@@ -208,14 +323,30 @@ db.serialize(async () => {
       id       INTEGER PRIMARY KEY AUTOINCREMENT,
       registro TEXT    UNIQUE,
       nombre   TEXT    NOT NULL,
-      dni      TEXT,
       celular  TEXT,
+      correo   TEXT,
+      direccion TEXT,
+      observaciones TEXT,
       fecha_nacimiento TEXT,
-      edad     INTEGER NOT NULL CHECK(edad > 0 AND edad < 150),
-      sexo     TEXT    NOT NULL CHECK(sexo IN ('M', 'F', 'O'))
+      edad     INTEGER,
+      sexo     TEXT    CHECK(sexo IN ('M', 'F', 'O')),
+      activo   INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT,
+      updated_at TEXT
     )
   `, 'pacientes');
   migrateColumn(`ALTER TABLE pacientes ADD COLUMN fecha_nacimiento TEXT`, 'pacientes_add_fecha_nacimiento');
+  migrateColumn(`ALTER TABLE pacientes ADD COLUMN correo TEXT`, 'pacientes_add_correo');
+  migrateColumn(`ALTER TABLE pacientes ADD COLUMN direccion TEXT`, 'pacientes_add_direccion');
+  migrateColumn(`ALTER TABLE pacientes ADD COLUMN observaciones TEXT`, 'pacientes_add_observaciones');
+  migrateColumn(`ALTER TABLE pacientes ADD COLUMN activo INTEGER NOT NULL DEFAULT 1`, 'pacientes_add_activo');
+  migrateColumn(`ALTER TABLE pacientes ADD COLUMN created_at TEXT`, 'pacientes_add_created_at');
+  migrateColumn(`ALTER TABLE pacientes ADD COLUMN updated_at TEXT`, 'pacientes_add_updated_at');
+  ddl(`UPDATE pacientes SET activo = 1 WHERE activo IS NULL`, 'pacientes_activo_default');
+  ddl(`UPDATE pacientes SET created_at = COALESCE(created_at, datetime('now')), updated_at = COALESCE(updated_at, datetime('now'))`, 'pacientes_timestamps_default');
+  backfillRegistrosPacientes();
+  clearColumnIfExists('pacientes', 'dni', 'pacientes_clear_dni');
+  dropColumnIfExists('pacientes', 'dni', 'pacientes_drop_dni');
 
   /* =========================
      ORDENES
@@ -387,6 +518,10 @@ db.serialize(async () => {
       archivo_url     TEXT    NOT NULL,
       archivo_path    TEXT,
       archivo_nombre  TEXT    NOT NULL,
+      resultado_uuid  TEXT,
+      r2_key          TEXT,
+      r2_url          TEXT,
+      qr_base64       TEXT,
       fecha           TEXT    NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (orden_id)   REFERENCES ordenes(id)  ON DELETE CASCADE ON UPDATE CASCADE,
       FOREIGN KEY (estudio_id) REFERENCES estudios(id) ON DELETE CASCADE ON UPDATE CASCADE
@@ -395,6 +530,16 @@ db.serialize(async () => {
 
   ddl(`CREATE INDEX IF NOT EXISTS idx_res_arch_orden ON resultado_archivos(orden_id)`, 'idx_res_arch_orden');
   migrateColumn(`ALTER TABLE resultado_archivos ADD COLUMN archivo_path TEXT`, 'resultado_archivos_add_archivo_path');
+  migrateColumn(`ALTER TABLE resultado_archivos ADD COLUMN resultado_uuid TEXT`, 'resultado_archivos_add_resultado_uuid');
+  migrateColumn(`ALTER TABLE resultado_archivos ADD COLUMN r2_key TEXT`, 'resultado_archivos_add_r2_key');
+  migrateColumn(`ALTER TABLE resultado_archivos ADD COLUMN r2_url TEXT`, 'resultado_archivos_add_r2_url');
+  migrateColumn(`ALTER TABLE resultado_archivos ADD COLUMN qr_base64 TEXT`, 'resultado_archivos_add_qr_base64');
+  ddl(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_resultado_archivos_uuid
+     ON resultado_archivos(resultado_uuid)
+     WHERE resultado_uuid IS NOT NULL AND TRIM(resultado_uuid) <> ''`,
+    'idx_resultado_archivos_uuid'
+  );
   migrateResultadoArchivosTable();
 
   /* =========================
@@ -1120,7 +1265,6 @@ db.serialize(async () => {
       tecnico_id       INTEGER,
       paciente_id      INTEGER,
       paciente_nombre  TEXT    NOT NULL,
-      paciente_dni     TEXT,
       paciente_celular TEXT,
       fecha            TEXT    NOT NULL,
       hora_inicio      TEXT    NOT NULL,
@@ -1145,6 +1289,8 @@ db.serialize(async () => {
   ddl(`CREATE INDEX IF NOT EXISTS idx_citas_tecnico  ON citas(tecnico_id)`,      'idx_citas_tecnico');
   ddl(`CREATE INDEX IF NOT EXISTS idx_citas_paciente ON citas(paciente_id)`,     'idx_citas_paciente');
   ddl(`CREATE INDEX IF NOT EXISTS idx_citas_estado   ON citas(estado)`,          'idx_citas_estado');
+  clearColumnIfExists('citas', 'paciente_dni', 'citas_clear_paciente_dni');
+  dropColumnIfExists('citas', 'paciente_dni', 'citas_drop_paciente_dni');
 
   /* =========================
      SEED: USUARIOS

@@ -4,7 +4,11 @@ const token = sessionStorage.getItem('token');
 
 if (!token || token === 'undefined') { sessionStorage.clear(); window.location.replace('/index.html'); }
 
-function logout() { sessionStorage.clear(); window.location.replace('/index.html'); }
+function logout() {
+  if (window.LabApi?.logout) return window.LabApi.logout();
+  sessionStorage.clear();
+  window.location.replace('/index.html');
+}
 
 function getTokenPayload() {
   try { return JSON.parse(atob(token.split('.')[1])); } catch { return {}; }
@@ -33,9 +37,7 @@ function can(permission) {
 function withAuthToken(url) {
   const value = String(url || '');
   if (!value || value === '#') return '#';
-  if (/[?&]token=/.test(value)) return value;
-  const sep = value.includes('?') ? '&' : '?';
-  return `${value}${sep}token=${encodeURIComponent(token)}`;
+  return value;
 }
 
 try {
@@ -144,6 +146,7 @@ function escapeHTML(value) {
 }
 
 async function api(url, opts = {}) {
+  if (window.LabApi?.apiFetch) return window.LabApi.apiFetch(url, opts);
   const headers = { Authorization: 'Bearer ' + token };
   if (opts.body) headers['Content-Type'] = 'application/json';
   const r = await fetch(url, { method: opts.method || 'GET', headers, body: opts.body || undefined, signal: opts.signal });
@@ -275,6 +278,10 @@ function _renderDashboard(d) {
 
 /* ── PROFORMA ── */
 
+let pfOrdenActual = null;
+let pfEstudiosActuales = [];
+let pfEmpresaActual = {};
+
 async function pfGenerar() {
   const folio = document.getElementById('pf-folio').value.trim().toUpperCase();
   const errEl = document.getElementById('pf-err');
@@ -295,6 +302,9 @@ async function pfGenerar() {
     const { orden, estudios } = await rO.json();
     const emp = rE.ok ? await rE.json() : {};
     const fechaEntrega = document.getElementById('pf-entrega').value;
+    pfOrdenActual = orden;
+    pfEstudiosActuales = estudios || [];
+    pfEmpresaActual = emp || {};
     pfRender(orden, estudios, emp, fechaEntrega);
   } catch (e) {
     if (e.isAuth) return;
@@ -410,6 +420,7 @@ function pfRender(orden, estudios, emp, fechaEntrega) {
       <hr class="pf-copy-divider">
       ${buildDoc(true)}
     </div>`;
+  return document.getElementById('pf-doc')?.innerHTML || '';
 }
 
 document.getElementById('pf-btn').addEventListener('click', pfGenerar);
@@ -418,6 +429,10 @@ document.getElementById('pf-folio').addEventListener('keydown', e => { if (e.key
 // Actualizar badge de entrega en tiempo real cuando cambia el input
 document.getElementById('pf-entrega').addEventListener('change', function () {
   const val = this.value;
+  if (pfOrdenActual) {
+    pfRender(pfOrdenActual, pfEstudiosActuales, pfEmpresaActual, val);
+    return;
+  }
   const badges = document.querySelectorAll('.pf-entrega-badge');
   const txts = document.querySelectorAll('.pf-entrega-badge-txt');
   if (!badges.length) return;
@@ -435,24 +450,111 @@ document.getElementById('pf-entrega').addEventListener('change', function () {
 
 // Funcion global de impresion
 window.pfImprimir = function () {
-  // Sincronizar fecha antes de imprimir por si cambio despues de buscar
-  document.getElementById('pf-entrega').dispatchEvent(new Event('change'));
-  window.print();
+  const fechaEntrega = document.getElementById('pf-entrega').value;
+  let printableHTML = '';
+  if (pfOrdenActual) {
+    printableHTML = pfRender(pfOrdenActual, pfEstudiosActuales, pfEmpresaActual, fechaEntrega);
+  } else {
+    document.getElementById('pf-entrega').dispatchEvent(new Event('change'));
+    printableHTML = document.getElementById('pf-doc')?.innerHTML || '';
+  }
+  const printHost = pfEnsurePrintHost();
+  printHost.innerHTML = printableHTML;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const cleanUp = () => {
+        printHost.innerHTML = '';
+        window.removeEventListener('afterprint', cleanUp);
+      };
+      window.addEventListener('afterprint', cleanUp);
+      window.print();
+      setTimeout(cleanUp, 60000);
+    });
+  });
 };
+
+function pfEnsurePrintHost() {
+  let style = document.getElementById('pf-print-host-style');
+  if (!style) {
+    style = document.createElement('style');
+    style.id = 'pf-print-host-style';
+    style.textContent = `
+      #pf-print-host { display: none; }
+      @media print {
+        body > *:not(#pf-print-host) { display: none !important; }
+        #pf-print-host {
+          display: block !important;
+          background: white !important;
+          color: #111827 !important;
+          width: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+        #pf-print-host .pf-copy {
+          display: block !important;
+          height: calc((297mm - 12mm) / 2 - 8mm) !important;
+          overflow: hidden !important;
+          box-sizing: border-box !important;
+        }
+        #pf-print-host .pf-copy-divider {
+          border-top: 1.5px dashed #888 !important;
+          margin: 3mm 0 !important;
+          position: relative !important;
+          height: 8mm !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          page-break-inside: avoid !important;
+        }
+        #pf-print-host .pf-copy-divider::before { display: none !important; }
+        #pf-print-host .pf-copy-divider::after {
+          content: '\\2702  CORTAR AQUI  -  Original: Laboratorio  |  Copia: Paciente  \\2702' !important;
+          font-size: 7px !important;
+          font-weight: 800 !important;
+          letter-spacing: 1px !important;
+          color: #888 !important;
+          background: white !important;
+          padding: 0 10px !important;
+          display: block !important;
+          white-space: nowrap !important;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  let host = document.getElementById('pf-print-host');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'pf-print-host';
+    document.body.appendChild(host);
+  }
+  return host;
+}
 
 /* ── VIEWER ── */
 
-function abrirViewer(url, nombre) {
+async function abrirViewer(url, nombre) {
   const modal = document.getElementById('viewer-modal');
   document.getElementById('viewer-title').textContent = nombre || 'Resultado';
   const dl = document.getElementById('viewer-dl');
-  dl.href = withAuthToken(url); dl.download = nombre || 'resultado';
   const body = document.getElementById('viewer-body');
   body.innerHTML = '';
+  let objectUrl = '';
+  try {
+    objectUrl = window.LabApi?.apiBlobUrl
+      ? await window.LabApi.apiBlobUrl(url)
+      : withAuthToken(url);
+  } catch (err) {
+    body.textContent = 'No se pudo cargar el archivo';
+    modal.classList.add('open');
+    return;
+  }
+  dl.href = objectUrl;
+  dl.download = nombre || 'resultado';
   if ((nombre || '').toLowerCase().endsWith('.pdf')) {
-    const f = document.createElement('iframe'); f.src = withAuthToken(url); f.title = nombre; body.appendChild(f);
+    const f = document.createElement('iframe'); f.src = objectUrl; f.title = nombre; body.appendChild(f);
   } else if (/\.(jpe?g|png|webp|tiff?|bmp)$/i.test(nombre || '')) {
-    const i = document.createElement('img'); i.src = withAuthToken(url); i.alt = nombre; body.appendChild(i);
+    const i = document.createElement('img'); i.src = objectUrl; i.alt = nombre; body.appendChild(i);
   } else {
     const wrap = document.createElement('div');
     wrap.className = 'viewer-unsupported';
@@ -463,7 +565,7 @@ function abrirViewer(url, nombre) {
     msg.textContent = 'Vista previa no disponible';
     const link = document.createElement('a');
     link.className = 'btn-vdl';
-    link.href = withAuthToken(url);
+    link.href = objectUrl;
     link.download = nombre || 'archivo';
     link.target = '_blank';
     link.rel = 'noopener';
@@ -611,8 +713,18 @@ function agRenderTimeline() {
       agBloqueos.filter(b => solapanFront(horaStr, horaFin, b.hora_inicio, b.hora_fin)).forEach(b => {
         const blq = document.createElement('div');
         blq.className = 'ag-bloqueo';
-        blq.innerHTML = `<span style="font-size:14px;">🚫</span><span class="ag-bloqueo-txt">${b.motivo || 'Bloqueado'} (${b.hora_inicio}–${b.hora_fin})</span>
-          <button onclick="eliminarBloqueo(${b.id})" style="margin-left:auto;background:none;border:none;cursor:pointer;font-size:11px;color:var(--muted);">✕</button>`;
+        const icon = document.createElement('span');
+        icon.style.fontSize = '14px';
+        icon.textContent = '🚫';
+        const txt = document.createElement('span');
+        txt.className = 'ag-bloqueo-txt';
+        txt.textContent = `${b.motivo || 'Bloqueado'} (${b.hora_inicio}-${b.hora_fin})`;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.style.cssText = 'margin-left:auto;background:none;border:none;cursor:pointer;font-size:11px;color:var(--muted);';
+        btn.textContent = 'x';
+        btn.addEventListener('click', () => eliminarBloqueo(b.id));
+        blq.append(icon, txt, btn);
         line.appendChild(blq);
       });
       // Citas en este slot (solo las que empiezan aquí para no duplicar)
@@ -710,7 +822,6 @@ function abrirModalCita(citaParaEditar = null) {
   const suc = document.getElementById('ag-suc-sel').value;
   if (citaParaEditar) {
     document.getElementById('mc-pac-nombre').value = citaParaEditar.paciente_nombre || '';
-    document.getElementById('mc-pac-dni').value = citaParaEditar.paciente_dni || '';
     document.getElementById('mc-pac-cel').value = citaParaEditar.paciente_celular || '';
     document.getElementById('mc-sucursal').value = citaParaEditar.sucursal || suc;
     document.getElementById('mc-fecha').value = citaParaEditar.fecha || hoy;
@@ -724,7 +835,6 @@ function abrirModalCita(citaParaEditar = null) {
     } catch { agMcSel = []; }
   } else {
     document.getElementById('mc-pac-nombre').value = '';
-    document.getElementById('mc-pac-dni').value = '';
     document.getElementById('mc-pac-cel').value = '';
     document.getElementById('mc-sucursal').value = suc;
     document.getElementById('mc-fecha').value = agFecha >= hoy ? agFecha : hoy;
@@ -846,7 +956,6 @@ async function guardarCita() {
     sucursal: suc,
     tecnico_id: document.getElementById('mc-tecnico').value || null,
     paciente_nombre: nombre,
-    paciente_dni: document.getElementById('mc-pac-dni').value.trim() || null,
     paciente_celular: document.getElementById('mc-pac-cel').value.trim() || null,
     fecha, hora_inicio: ini, hora_fin: fin,
     duracion_min: Number(document.getElementById('mc-duracion').value),
@@ -888,7 +997,6 @@ function abrirDetalleCita(cita) {
     <div class="cd-row"><span class="cd-key">Horario</span><span class="cd-val">${c.hora_inicio} – ${c.hora_fin}</span></div>
     <div class="cd-row"><span class="cd-key">Sucursal</span><span class="cd-val">${c.sucursal}</span></div>
     ${c.tecnico_nombre ? `<div class="cd-row"><span class="cd-key">Técnico</span><span class="cd-val">${c.tecnico_nombre}</span></div>` : ''}
-    ${c.paciente_dni ? `<div class="cd-row"><span class="cd-key">DNI</span><span class="cd-val">${c.paciente_dni}</span></div>` : ''}
     ${c.paciente_celular ? `<div class="cd-row"><span class="cd-key">Celular</span><span class="cd-val">${c.paciente_celular}</span></div>` : ''}
     ${c.estudios_nombres ? `<div class="cd-row"><span class="cd-key">Estudios</span><span class="cd-val" style="max-width:240px;text-align:right;">${c.estudios_nombres}</span></div>` : ''}
     ${c.notas ? `<div class="cd-row"><span class="cd-key">Notas</span><span class="cd-val">${c.notas}</span></div>` : ''}
@@ -1338,7 +1446,7 @@ document.getElementById('modal-bloqueo').addEventListener('click', function (e) 
       ? ordenes.filter(o =>
         o.paciente_nombre.toLowerCase().includes(q) ||
         o.folio.toLowerCase().includes(q) ||
-        (o.paciente_dni || '').toLowerCase().includes(q)
+        (o.paciente_celular || '').toLowerCase().includes(q)
       )
       : ordenes;
     countEl.textContent = filtradas.length + ' orden' + (filtradas.length !== 1 ? 'es' : '');
@@ -1524,7 +1632,7 @@ document.getElementById('modal-bloqueo').addEventListener('click', function (e) 
                  </div>
                  <div class="res-file-actions">
                    <button class="res-btn-file-action res-btn-view" data-url="${url}" data-nombre="${nombre}">👁️ Ver</button>
-                   <a class="res-btn-file-action res-btn-download" href="${url}" download="${nombre}" target="_blank" rel="noopener">⬇️ Descargar</a>
+                  <a class="res-btn-file-action res-btn-download" href="#" data-url="${url}" data-nombre="${nombre}">⬇️ Descargar</a>
                    <button class="res-btn-delete-file" data-archivo="${archivo.id}">🗑️</button>
                  </div>
                </div>`;
@@ -1541,6 +1649,21 @@ document.getElementById('modal-bloqueo').addEventListener('click', function (e) 
     });
     savedWrap.querySelectorAll('.res-btn-view').forEach((btn) => {
       btn.addEventListener('click', () => resAbrirViewer(btn.dataset.url, btn.dataset.nombre));
+    });
+    savedWrap.querySelectorAll('.res-btn-download').forEach((link) => {
+      link.addEventListener('click', async (event) => {
+        event.preventDefault();
+        try {
+          const blobUrl = await window.LabApi.apiBlobUrl(link.dataset.url);
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = link.dataset.nombre || 'resultado';
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+        } catch {
+          toast('No se pudo descargar el archivo', '❌');
+        }
+      });
     });
     savedWrap.querySelectorAll('.res-btn-delete-file').forEach((btn) => {
       btn.addEventListener('click', () => resEliminarArchivo(btn.dataset.archivo));
@@ -1619,12 +1742,10 @@ document.getElementById('modal-bloqueo').addEventListener('click', function (e) 
     fd.append('orden_id', resOrdenActual.id);
     resPendingFiles.forEach((file) => fd.append('archivos', file));
     try {
-      const r = await fetch('/api/resultados/subir', {
+      const r = await (window.LabApi?.apiFetch || fetch)('/api/resultados/subir', {
         method: 'POST',
-        headers: { Authorization: 'Bearer ' + token },
         body: fd
       });
-      if (r.status === 401 || r.status === 403) { logout(); return; }
       const data = await r.json();
       if (!r.ok) {
         toast(data?.error || 'Error al guardar archivos', '❌');
@@ -1735,7 +1856,7 @@ document.getElementById('modal-bloqueo').addEventListener('click', function (e) 
       ? ordenes.filter(o =>
         o.paciente_nombre.toLowerCase().includes(q) ||
         o.folio.toLowerCase().includes(q) ||
-        (o.paciente_dni || '').toLowerCase().includes(q)
+        (o.paciente_celular || '').toLowerCase().includes(q)
       )
       : ordenes;
     countEl.textContent = filtradas.length + ' orden' + (filtradas.length !== 1 ? 'es' : '');
@@ -1854,11 +1975,22 @@ document.getElementById('modal-bloqueo').addEventListener('click', function (e) 
       btnVer.addEventListener('click', () => resAbrirViewer(archivo.archivo_url, archivo.archivo_nombre || 'resultado'));
       const linkDl = document.createElement('a');
       linkDl.className = 'res-btn-file-action res-btn-download';
-      linkDl.href = safeRelativeUrl(archivo.archivo_url);
+      linkDl.href = '#';
       linkDl.download = archivo.archivo_nombre || 'resultado';
-      linkDl.target = '_blank';
-      linkDl.rel = 'noopener';
       linkDl.textContent = '⬇️ Descargar';
+      linkDl.addEventListener('click', async (event) => {
+        event.preventDefault();
+        try {
+          const blobUrl = await window.LabApi.apiBlobUrl(safeRelativeUrl(archivo.archivo_url));
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = archivo.archivo_nombre || 'resultado';
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+        } catch {
+          toast('No se pudo descargar el archivo', '❌');
+        }
+      });
       actions.append(btnVer, linkDl);
       info.append(fname, actions);
       body.append(icon, info);
@@ -1867,25 +1999,35 @@ document.getElementById('modal-bloqueo').addEventListener('click', function (e) 
     });
   }
   /* ══ VIEWER ══ */
-  function resAbrirViewer(url, nombre) {
+  async function resAbrirViewer(url, nombre) {
     // Reutilizar viewer modal inline de resultados
     const modal = document.getElementById('res-viewer-modal');
     const title = document.getElementById('res-viewer-title');
     const body = document.getElementById('res-viewer-body');
     const dlBtn = document.getElementById('res-viewer-dl-btn');
     title.textContent = nombre || 'Resultado';
-    dlBtn.href = safeRelativeUrl(url);
-    dlBtn.download = nombre || 'resultado';
     body.innerHTML = '';
+    let objectUrl = '';
+    try {
+      objectUrl = window.LabApi?.apiBlobUrl
+        ? await window.LabApi.apiBlobUrl(safeRelativeUrl(url))
+        : safeRelativeUrl(url);
+    } catch (err) {
+      body.textContent = 'No se pudo cargar el archivo';
+      modal.classList.add('open');
+      return;
+    }
+    dlBtn.href = objectUrl;
+    dlBtn.download = nombre || 'resultado';
     const esPDF = (nombre || '').toLowerCase().endsWith('.pdf');
     const esImg = /\.(jpe?g|png|webp|tiff?|bmp)$/i.test(nombre || '');
     if (esPDF) {
       const iframe = document.createElement('iframe');
-      iframe.src = safeRelativeUrl(url); iframe.title = nombre;
+      iframe.src = objectUrl; iframe.title = nombre;
       body.appendChild(iframe);
     } else if (esImg) {
       const img = document.createElement('img');
-      img.src = safeRelativeUrl(url); img.alt = nombre;
+      img.src = objectUrl; img.alt = nombre;
       body.appendChild(img);
     } else {
       const wrap = document.createElement('div');
@@ -1897,7 +2039,7 @@ document.getElementById('modal-bloqueo').addEventListener('click', function (e) 
       msg.textContent = 'Vista previa no disponible para este tipo de archivo.';
       const link = document.createElement('a');
       link.className = 'btn btn-primary btn-sm';
-      link.href = safeRelativeUrl(url);
+      link.href = objectUrl;
       link.download = nombre || 'resultado';
       link.target = '_blank';
       link.rel = 'noopener';

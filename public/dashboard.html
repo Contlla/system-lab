@@ -10,7 +10,7 @@
 
   <meta http-equiv="Content-Security-Policy"
 
-        content="default-src 'self'; script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-src 'self';">
+        content="default-src 'self'; script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' blob:; frame-src 'self' blob:;">
 
   <title>SIS Laboratorio</title>
 
@@ -1700,7 +1700,7 @@
 
     @keyframes shimmerPac { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-    #pac-modal-form.open, #pac-modal-confirm.open { display: flex !important; }
+    #pac-modal-form.open, #pac-modal-confirm.open, #pac-modal-detail.open { display: flex !important; }
 
     #pac-pagination { display: none; }
 
@@ -1802,6 +1802,31 @@
     #view-pacientes .pac-table tbody td:nth-child(5) {
       font-family: 'DM Mono', monospace;
     }
+    #view-pacientes .pac-name {
+      font-weight: 800;
+      color: var(--text);
+    }
+    #view-pacientes .pac-subline {
+      margin-top: 3px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    #view-pacientes .pac-mini-pill {
+      display: inline-flex;
+      align-items: center;
+      margin: 2px 4px 2px 0;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--bg);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    #view-pacientes .pac-mini-pill.warn {
+      background: #fff8e1;
+      color: #946200;
+    }
     #view-pacientes .pac-badge {
       display: inline-flex;
       align-items: center;
@@ -1828,8 +1853,9 @@
       align-items: center;
     }
     #view-pacientes .pac-action-btn {
-      width: 32px;
+      min-width: 32px;
       height: 32px;
+      padding: 0 9px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -1952,12 +1978,15 @@
       box-shadow: var(--shadow);
       animation: slideUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
       overflow: hidden;
+      max-height: calc(100vh - 40px);
+      display: flex;
+      flex-direction: column;
     }
     #view-pacientes .pac-modal-dialog.form {
-      max-width: 560px;
+      max-width: min(560px, calc(100vw - 28px));
     }
     #view-pacientes .pac-modal-dialog.confirm {
-      max-width: 410px;
+      max-width: min(410px, calc(100vw - 28px));
     }
     #view-pacientes .pac-modal-header {
       display: flex;
@@ -1993,6 +2022,58 @@
     }
     #view-pacientes .pac-modal-body {
       padding: 24px;
+      overflow-y: auto;
+      min-height: 0;
+    }
+    #view-pacientes .pac-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    #view-pacientes .pac-detail-card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg);
+      padding: 12px;
+    }
+    #view-pacientes .pac-detail-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    #view-pacientes .pac-detail-card strong {
+      font-size: 14px;
+      color: var(--text);
+    }
+    #view-pacientes .pac-detail-section {
+      border-top: 1px solid var(--border);
+      padding-top: 14px;
+      margin-top: 14px;
+    }
+    #view-pacientes .pac-detail-section h4 {
+      margin: 0 0 8px;
+      font-size: 13px;
+    }
+    #view-pacientes .pac-detail-section p,
+    #view-pacientes .pac-detail-empty,
+    #view-pacientes .pac-detail-loading {
+      color: var(--muted);
+      font-size: 13px;
+      margin: 0 0 6px;
+    }
+    #view-pacientes .pac-detail-row {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 0.8fr 1fr;
+      gap: 10px;
+      align-items: center;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
     }
     #view-pacientes .pac-form-grid {
       display: grid;
@@ -2046,6 +2127,7 @@
       padding: 16px 24px;
       border-top: 1px solid var(--border);
       background: #fcfefd;
+      flex-shrink: 0;
     }
     #view-pacientes .pac-confirm-body {
       padding: 24px;
@@ -2088,6 +2170,14 @@
     }
     @media (max-width: 640px) {
       #view-pacientes .pac-form-grid {
+        grid-template-columns: 1fr;
+      }
+      #view-pacientes .pac-modal {
+        align-items: flex-start;
+        padding: 12px;
+      }
+      #view-pacientes .pac-detail-grid,
+      #view-pacientes .pac-detail-row {
         grid-template-columns: 1fr;
       }
       #view-pacientes .pac-modal-body,
@@ -2558,7 +2648,7 @@
 
               <svg viewBox="0 0 20 20"><path d="M12.9 14.32a8 8 0 1 1 1.41-1.41l5.35 5.33-1.42 1.42-5.34-5.34zM8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12z"/></svg>
 
-              <input class="search-input" id="rv-search" type="text" placeholder="Nombre, folio, DNI…" autocomplete="off">
+              <input class="search-input" id="rv-search" type="text" placeholder="Nombre, folio o celular..." autocomplete="off">
 
             </div>
 
@@ -3110,7 +3200,7 @@
 
           <svg viewBox="0 0 20 20" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);width:15px;height:15px;fill:var(--muted);pointer-events:none;"><path d="M12.9 14.32a8 8 0 1 1 1.41-1.41l5.35 5.33-1.42 1.42-5.34-5.34zM8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12z"/></svg>
 
-          <input class="bq-input" id="bq-q" type="text" placeholder="Folio, paciente, DNI, celular…" autocomplete="off">
+          <input class="bq-input" id="bq-q" type="text" placeholder="Folio, paciente, celular o nacimiento..." autocomplete="off">
 
         </div>
 
@@ -3288,7 +3378,7 @@
 
           <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.5 6.5 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
 
-          <input class="search-input" id="pac-search-input" type="text" placeholder="Buscar por nombre, DNI o registro..." autocomplete="off">
+          <input class="search-input" id="pac-search-input" type="text" placeholder="Buscar por nombre, celular, registro o nacimiento..." autocomplete="off">
 
         </div>
 
@@ -3346,15 +3436,17 @@
 
                 <th>Registro</th>
 
-                <th>Nombre</th>
-
-                <th>DNI</th>
+                <th>Paciente</th>
 
                 <th>Celular</th>
 
                 <th>Edad</th>
 
                 <th>Sexo</th>
+
+                <th>Ultima visita</th>
+
+                <th>Estado</th>
 
                 <th>Acciones</th>
 
@@ -3402,15 +3494,7 @@
 
                 <label class="pac-form-label" for="pac-f-registro">Nº Registro</label>
 
-                <input id="pac-f-registro" class="pac-form-input mono" type="text" placeholder="Ej: PAC-00001" maxlength="20">
-
-              </div>
-
-              <div class="pac-form-field">
-
-                <label class="pac-form-label" for="pac-f-dni">DNI / Cédula</label>
-
-                <input id="pac-f-dni" class="pac-form-input mono" type="text" placeholder="Ej: 12345678" maxlength="20">
+                <input id="pac-f-registro" class="pac-form-input mono" type="text" placeholder="Se genera automaticamente" maxlength="20" readonly>
 
               </div>
 
@@ -3432,9 +3516,9 @@
 
               <div class="pac-form-field">
 
-                <label class="pac-form-label" for="pac-f-edad">Edad *</label>
+                <label class="pac-form-label" for="pac-f-fecha-nacimiento">Fecha de nacimiento *</label>
 
-                <input id="pac-f-edad" class="pac-form-input" type="number" placeholder="Ej: 35" min="1" max="149">
+                <input id="pac-f-fecha-nacimiento" class="pac-form-input mono" type="date">
 
               </div>
 
@@ -3453,6 +3537,30 @@
                   <option value="O">Otro</option>
 
                 </select>
+
+              </div>
+
+              <div class="pac-form-field">
+
+                <label class="pac-form-label" for="pac-f-correo">Correo</label>
+
+                <input id="pac-f-correo" class="pac-form-input" type="email" placeholder="paciente@correo.com">
+
+              </div>
+
+              <div class="pac-form-field full">
+
+                <label class="pac-form-label" for="pac-f-direccion">Direccion</label>
+
+                <input id="pac-f-direccion" class="pac-form-input" type="text" placeholder="Calle, colonia, ciudad">
+
+              </div>
+
+              <div class="pac-form-field full">
+
+                <label class="pac-form-label" for="pac-f-observaciones">Observaciones</label>
+
+                <textarea id="pac-f-observaciones" class="pac-form-input" rows="3" placeholder="Alergias, notas administrativas o datos relevantes"></textarea>
 
               </div>
 
@@ -3507,6 +3615,24 @@
             <button class="btn pac-btn-danger" id="pac-confirm-delete">Sí, eliminar</button>
 
           </div>
+
+        </div>
+
+      </div>
+
+      <div id="pac-modal-detail" class="pac-modal">
+
+        <div class="pac-modal-dialog form">
+
+          <div class="pac-modal-header">
+
+            <span class="pac-modal-heading" id="pac-detail-title">Detalle del paciente</span>
+
+            <button id="pac-modal-close-detail" class="pac-modal-close">x</button>
+
+          </div>
+
+          <div class="pac-modal-body" id="pac-detail-body"></div>
 
         </div>
 
@@ -3575,7 +3701,7 @@
 
                 <svg viewBox="0 0 20 20"><path d="M12.9 14.32a8 8 0 1 1 1.41-1.41l5.35 5.33-1.42 1.42-5.34-5.34zM8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12z"/></svg>
 
-                <input class="search-input" id="res-search-paciente" type="text" placeholder="Buscar por nombre, folio, DNI…" autocomplete="off">
+                <input class="search-input" id="res-search-paciente" type="text" placeholder="Buscar por nombre, folio o celular..." autocomplete="off">
 
               </div>
 
@@ -3645,7 +3771,7 @@
 
                 <svg viewBox="0 0 20 20"><path d="M12.9 14.32a8 8 0 1 1 1.41-1.41l5.35 5.33-1.42 1.42-5.34-5.34zM8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12z"/></svg>
 
-                <input class="search-input" id="res-search-completados" type="text" placeholder="Buscar por nombre, folio, DNI…" autocomplete="off">
+                <input class="search-input" id="res-search-completados" type="text" placeholder="Buscar por nombre, folio o celular..." autocomplete="off">
 
               </div>
 
@@ -4032,14 +4158,6 @@
         <label>Nombre del paciente *</label>
 
         <input id="mc-pac-nombre" type="text" placeholder="Nombre completo" autocomplete="off">
-
-      </div>
-
-      <div class="form-field">
-
-        <label>DNI / Cédula</label>
-
-        <input id="mc-pac-dni" type="text" placeholder="Opcional" autocomplete="off">
 
       </div>
 
@@ -4549,6 +4667,7 @@
 
 
 
+<script src="/shared/api-client.js"></script>
 <script src="/dashboard.js"></script>
 
 <script src="/dashboard-buscar.js"></script>
@@ -4564,12 +4683,3 @@
 </body>
 
 </html>
-
-
-
-
-
-
-
-
-

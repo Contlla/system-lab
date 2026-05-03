@@ -1,6 +1,8 @@
 require('dotenv').config();
 
 const jwt = require('jsonwebtoken');
+const { get } = require('../db');
+const { buildAuthUser } = require('../permissions');
 
 const SECRET = process.env.JWT_SECRET;
 if (!SECRET) {
@@ -8,7 +10,7 @@ if (!SECRET) {
   process.exit(1);
 }
 
-function authMiddleware(req, res, next) {
+async function authMiddleware(req, res, next) {
   const header = req.headers.authorization;
 
   if (!header) {
@@ -23,7 +25,14 @@ function authMiddleware(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, SECRET);
-    req.user = decoded;
+    const user = await get(
+      `SELECT id, usuario, role, permissions FROM usuarios WHERE id = ?`,
+      [decoded.id]
+    );
+    if (!user) {
+      return res.status(401).json({ error: 'Session user is no longer valid' });
+    }
+    req.user = buildAuthUser(user);
     next();
 
   } catch (err) {

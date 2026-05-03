@@ -185,7 +185,6 @@
       info.innerHTML = '';
       const infoData = [
         ['Paciente', orden.paciente_nombre, false],
-        ['DNI', orden.paciente_dni || '—', false],
         ['Celular', orden.paciente_celular || '—', false],
         ['Sucursal', orden.sucursal, false],
         ['Médico', orden.medico || '—', false],
@@ -261,7 +260,6 @@
       const copiables = [
         ['📋 Folio', orden.folio],
         ['👤 Paciente', orden.paciente_nombre],
-        ['🪪 DNI', orden.paciente_dni || ''],
         ['📱 Celular', orden.paciente_celular || ''],
         ['💵 Total', '$' + fmt(orden.total)],
         ['💸 Saldo', '$' + fmt(orden.saldo)],

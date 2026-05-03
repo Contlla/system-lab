@@ -1,0 +1,420 @@
+<div id="cj-wrapper">
+
+<!-- BANNER OFFLINE -->
+<div class="offline-banner" id="offline-banner">
+  ⚠️ Sin conexión a internet — los cambios no se guardarán hasta restaurar la conexión
+</div>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div>
+      <div class="page-title">🏧 Caja</div>
+      <div class="page-sub">Sistema de cobro y cortes de caja</div>
+    </div>
+  </div>
+  <div class="cj-toolbar-actions">
+    <button class="btn btn-outline-green" id="btn-corte">🖨️ Corte de Caja</button>
+  </div>
+</div>
+
+<!-- RESUMEN DÍA -->
+<div class="summary-grid" id="summary-grid">
+  <div class="summary-card green">
+    <div class="sc-label">Total del día</div>
+    <div class="sc-value green" id="sc-total">$0.00</div>
+    <div class="sc-sub" id="sc-num-pagos">0 pagos</div>
+    <div class="sc-sub cj-session-sub" id="sc-sub-corte"></div>
+  </div>
+  <div class="summary-card blue">
+    <div class="sc-label">Efectivo</div>
+    <div class="sc-value blue" id="sc-efectivo">$0.00</div>
+  </div>
+  <div class="summary-card orange">
+    <div class="sc-label">Tarjeta</div>
+    <div class="sc-value orange" id="sc-tarjeta">$0.00</div>
+  </div>
+  <div class="summary-card purple">
+    <div class="sc-label">Transferencia</div>
+    <div class="sc-value purple" id="sc-transferencia">$0.00</div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab-btn active" data-tab="cobro">💳 Cobrar Orden</button>
+  <button class="tab-btn"        data-tab="historial">📋 Historial del Día</button>
+  <button class="tab-btn"        data-tab="cortes">📅 Cortes Anteriores</button>
+</div>
+
+<!-- ══ TAB: COBRO ══ -->
+<div class="tab-pane active" id="tab-cobro">
+  <div class="two-col">
+
+    <!-- IZQUIERDA: Buscar + cobrar con Pagos Mixtos -->
+    <div>
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🔍 Buscar Orden</div>
+        </div>
+        <div class="panel-body">
+
+          <div class="field">
+            <label>Folio de la orden</label>
+            <input id="folio-input" type="text" placeholder="Ej: LAB-CDC-2026-000001" autocomplete="off">
+          </div>
+          <button class="btn btn-primary btn-block" id="btn-buscar-orden">
+            <span class="btn-text">Buscar</span>
+            <span class="btn-spinner"></span>
+          </button>
+
+          <div id="orden-info" class="cj-order-info is-hidden">
+            <!-- Resumen de la orden -->
+            <div class="orden-card" id="orden-card"></div>
+
+            <!-- ══ ÁREA DE PAGOS MIXTOS ══ -->
+            <div id="split-payment-area">
+
+              <!-- Barra de progreso del pago -->
+              <div class="saldo-progress-wrap is-hidden" id="saldo-progress-wrap">
+                <div class="saldo-progress-header">
+                  <span class="saldo-progress-label">Progreso del pago</span>
+                  <span class="saldo-progress-pct" id="saldo-progress-pct">0%</span>
+                </div>
+                <div class="saldo-progress-bar">
+                  <div class="saldo-progress-fill" id="saldo-progress-fill"></div>
+                </div>
+              </div>
+
+              <!-- Lista de pagos parciales registrados en esta sesión -->
+              <div id="split-pagos-lista" class="split-pagos-lista is-hidden"></div>
+
+              <!-- Panel saldo restante / cambio -->
+              <div class="saldo-restante-box is-hidden" id="saldo-restante-box">
+                <div>
+                  <div class="srb-label" id="srb-label">Saldo restante</div>
+                </div>
+                <div class="srb-value" id="srb-value">$0.00</div>
+              </div>
+
+              <!-- Sección: Agregar pago parcial -->
+              <div id="add-pago-section">
+                <div class="split-section-title" id="split-section-title">Método de pago</div>
+
+                <div class="metodo-grid">
+                  <button class="metodo-btn selected" data-metodo="efectivo">
+                    <span class="ico">💵</span>Efectivo
+                  </button>
+                  <button class="metodo-btn" data-metodo="tarjeta">
+                    <span class="ico">💳</span>Tarjeta
+                  </button>
+                  <button class="metodo-btn" data-metodo="transferencia">
+                    <span class="ico">📲</span>Transferencia
+                  </button>
+                </div>
+
+                <div class="field is-hidden" id="referencia-field">
+                  <label id="referencia-label">Referencia / Número de autorización</label>
+                  <input id="referencia-input" type="text" placeholder="Ej: AUTH-123456" autocomplete="off">
+                </div>
+
+                <div class="field">
+                  <label>Monto a aplicar</label>
+                  <input id="monto-input" type="number" placeholder="0.00" min="0.01" step="0.01">
+                </div>
+
+                <div class="cambio-box" id="cambio-box">
+                  <div class="cambio-label">💰 Cambio a entregar</div>
+                  <div class="cambio-amount" id="cambio-amount">$0.00</div>
+                </div>
+              </div>
+
+              <div class="status-msg" id="cobro-status"></div>
+
+              <!-- Botones de acción -->
+              <div class="cj-payment-actions">
+                <!-- Botón "Agregar pago parcial" (visible cuando hay saldo y se necesita mezclar métodos) -->
+                <button class="btn btn-blue cj-flex-action is-hidden" id="btn-agregar-pago">
+                  <span class="btn-text">➕ Agregar pago</span>
+                  <span class="btn-spinner"></span>
+                </button>
+                <!-- Botón "Finalizar cobro" (habilitado sólo cuando saldo = 0) -->
+                <button class="btn btn-primary cj-flex-action" id="btn-cobrar" disabled>
+                  <span class="btn-text">✅ Registrar Pago</span>
+                  <span class="btn-spinner"></span>
+                </button>
+                <button class="btn btn-ghost" id="btn-ticket-pre" title="Ver ticket previo">🖨️</button>
+              </div>
+
+              <!-- Botón limpiar pagos parciales -->
+              <div class="cj-clear-split-wrap is-hidden" id="btn-limpiar-split-wrap">
+                <button class="btn btn-ghost btn-sm" id="btn-limpiar-split">
+                  🗑 Limpiar pagos pendientes
+                </button>
+              </div>
+
+            </div><!-- /split-payment-area -->
+          </div><!-- /orden-info -->
+
+        </div>
+      </div>
+    </div>
+
+    <!-- DERECHA: Últimos pagos del día -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">⚡ Últimos pagos de hoy</div>
+        <button class="btn btn-ghost btn-sm" id="btn-refresh-pagos">↺ Actualizar</button>
+      </div>
+      <div class="cj-recent-payments" id="pagos-recientes-wrap">
+        <div class="empty">
+          <div class="empty-icon">💳</div>
+          <div class="empty-title">Sin pagos en la sesion</div>
+          <div class="empty-sub">Los pagos del día aparecerán aquí</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ TAB: HISTORIAL ══ -->
+<div class="tab-pane" id="tab-historial">
+  <div class="panel">
+    <div class="hist-toolbar">
+      <div class="panel-title">📋 Historial de Pagos</div>
+      <input type="date" class="date-input" id="hist-fecha">
+      <button class="btn btn-primary" id="btn-hist-buscar">Buscar</button>
+      <button class="btn btn-outline-green" id="btn-export-hist">⬇ Exportar CSV</button>
+    </div>
+
+    <div id="hist-resumen" class="cj-inline-summary is-hidden">
+      <div class="cj-summary-row">
+        <span>Total: <strong id="hr-total">—</strong></span>
+        <span>Efectivo: <strong id="hr-efectivo">—</strong></span>
+        <span>Tarjeta: <strong id="hr-tarjeta">—</strong></span>
+        <span>Transferencia: <strong id="hr-transfer">—</strong></span>
+        <span>Pagos: <strong id="hr-num">—</strong></span>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Folio</th>
+            <th>Paciente</th>
+            <th>Método</th>
+            <th>Monto</th>
+            <th>Cajero</th>
+            <th>Hora</th>
+            <th>Ticket</th>
+          </tr>
+        </thead>
+        <tbody id="hist-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB: CORTES ══ -->
+<div class="tab-pane" id="tab-cortes">
+
+  <div class="panel cj-panel-spaced">
+    <div class="hist-toolbar cj-wrap-toolbar">
+      <div class="panel-title">📅 Historial de Cortes</div>
+      <div class="cj-filter-row">
+        <label class="cj-filter-label">Desde</label>
+        <input type="date" class="date-input" id="corte-desde">
+        <label class="cj-filter-label">Hasta</label>
+        <input type="date" class="date-input" id="corte-hasta">
+        <button class="btn btn-primary btn-compact" id="btn-filtrar-cortes">Filtrar</button>
+        <button class="btn btn-ghost btn-compact" id="btn-limpiar-cortes">Limpiar</button>
+      </div>
+    </div>
+
+    <div id="cortes-resumen-filtro" class="cj-inline-summary cj-inline-summary-sm is-hidden">
+      <div class="cj-summary-row">
+        <span>Cortes: <strong id="crf-num">—</strong></span>
+        <span>Total: <strong id="crf-total">—</strong></span>
+        <span>Efectivo: <strong id="crf-efectivo">—</strong></span>
+        <span>Tarjeta: <strong id="crf-tarjeta">—</strong></span>
+        <span>Transferencia: <strong id="crf-transfer">—</strong></span>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Fecha</th>
+            <th>Período</th>
+            <th>Cajero</th>
+            <th>Efectivo</th>
+            <th>Tarjeta</th>
+            <th>Transferencia</th>
+            <th>Total</th>
+            <th>Pagos</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="cortes-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Comparativa últimos 30 días -->
+  <div class="panel" id="panel-comparativa">
+    <div class="panel-header">
+      <div class="panel-title">📊 Comparativa de ingresos</div>
+      <div class="cj-filter-row">
+        <select id="comp-dias" class="date-input cj-compact-select">
+          <option value="7">Últimos 7 días</option>
+          <option value="30" selected>Últimos 30 días</option>
+          <option value="60">Últimos 60 días</option>
+          <option value="90">Últimos 90 días</option>
+        </select>
+      </div>
+    </div>
+    <div class="panel-body cj-chart-body">
+      <canvas id="comp-chart" class="cj-chart"></canvas>
+      <div id="comp-empty" class="empty is-hidden">
+        <div class="empty-icon">📊</div>
+        <div class="empty-title">Sin datos para graficar</div>
+        <div class="empty-sub">Realiza cortes para ver la comparativa</div>
+      </div>
+      <div id="comp-tabla-wrap" class="cj-chart-table is-hidden">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Cortes</th>
+              <th>Efectivo</th>
+              <th>Tarjeta</th>
+              <th>Transferencia</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody id="comp-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ MODAL: CORTE DE CAJA ══ -->
+<div class="modal-backdrop" id="modal-corte">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">🖨️ Corte de Caja</span>
+      <button class="modal-close" id="modal-corte-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="cj-modal-help">
+        Se generará el corte de caja del día actual con todos los pagos registrados.
+      </p>
+      <div class="corte-preview" id="corte-preview">
+        <div class="corte-row"><span class="lbl">💵 Efectivo</span>      <strong id="cp-efectivo">—</strong></div>
+        <div class="corte-row"><span class="lbl">💳 Tarjeta</span>       <strong id="cp-tarjeta">—</strong></div>
+        <div class="corte-row"><span class="lbl">📲 Transferencia</span> <strong id="cp-transfer">—</strong></div>
+        <div class="corte-row"><span class="lbl">📊 Pagos realizados</span><strong id="cp-num">—</strong></div>
+        <div class="corte-row"><span class="lbl">TOTAL GENERAL</span> <strong id="cp-total" class="cj-total-green">—</strong></div>
+        <div class="cj-cut-period" id="cp-desde"></div>
+      </div>
+      <div class="field">
+        <label>Observaciones (opcional)</label>
+        <input id="corte-obs" type="text" placeholder="Ej: Todo correcto, sin diferencias">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="modal-corte-cancel">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirmar-corte">
+        <span class="btn-text">🖨️ Generar e Imprimir Corte</span>
+        <span class="btn-spinner"></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TICKET PARA IMPRESIÓN ══ -->
+<div id="ticket-print"></div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <span id="toast-icon">✅</span>
+  <span id="toast-msg"></span>
+</div>
+
+<!-- ══ MODAL: DETALLE DE CORTE ══ -->
+<div class="modal-backdrop" id="modal-detalle-corte">
+  <div class="modal cj-detail-modal">
+    <div class="modal-header">
+      <span class="modal-title" id="mdc-titulo">📋 Detalle del Corte</span>
+      <button class="modal-close" id="mdc-close">✕</button>
+    </div>
+
+    <div class="cj-detail-summary">
+      <div class="cj-detail-grid">
+        <div>
+          <div class="cj-detail-label">Efectivo</div>
+          <div class="cj-detail-value green" id="mdc-efectivo">—</div>
+        </div>
+        <div>
+          <div class="cj-detail-label">Tarjeta</div>
+          <div class="cj-detail-value blue" id="mdc-tarjeta">—</div>
+        </div>
+        <div>
+          <div class="cj-detail-label">Transferencia</div>
+          <div class="cj-detail-value purple" id="mdc-transfer">—</div>
+        </div>
+        <div>
+          <div class="cj-detail-label">Total</div>
+          <div class="cj-detail-value total" id="mdc-total">—</div>
+        </div>
+        <div>
+          <div class="cj-detail-label">Pagos</div>
+          <div class="cj-detail-value" id="mdc-num">—</div>
+        </div>
+      </div>
+      <div class="cj-detail-meta" id="mdc-periodo">—</div>
+      <div class="cj-detail-meta" id="mdc-cajero">—</div>
+      <div class="cj-detail-note" id="mdc-obs"></div>
+    </div>
+
+    <div class="cj-detail-scroll">
+      <div class="cj-detail-section-title">
+        Detalle de pagos incluidos
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Folio</th>
+              <th>Paciente</th>
+              <th>Método</th>
+              <th>Monto</th>
+              <th>Hora</th>
+              <th>Ticket</th>
+            </tr>
+          </thead>
+          <tbody id="mdc-tbody"></tbody>
+        </table>
+      </div>
+      <div id="mdc-empty" class="empty is-hidden">
+        <div class="empty-icon">📋</div>
+        <div class="empty-title">Sin pagos en este corte</div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="mdc-cancel">Cerrar</button>
+      <button class="btn btn-primary" id="mdc-reimprimir">🖨️ Reimprimir Corte</button>
+    </div>
+  </div>
+</div>
+
+</div>
