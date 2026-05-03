@@ -188,6 +188,10 @@ function migrateResultadoArchivosTable() {
               archivo_url     TEXT    NOT NULL,
               archivo_path    TEXT,
               archivo_nombre  TEXT    NOT NULL,
+              resultado_uuid  TEXT,
+              r2_key          TEXT,
+              r2_url          TEXT,
+              qr_base64       TEXT,
               fecha           TEXT    NOT NULL DEFAULT (datetime('now')),
               FOREIGN KEY (orden_id)   REFERENCES ordenes(id)  ON DELETE CASCADE ON UPDATE CASCADE,
               FOREIGN KEY (estudio_id) REFERENCES estudios(id) ON DELETE CASCADE ON UPDATE CASCADE
@@ -199,8 +203,13 @@ function migrateResultadoArchivosTable() {
             }
 
             db.run(`
-              INSERT INTO resultado_archivos (id, orden_id, estudio_id, archivo_url, archivo_path, archivo_nombre, fecha)
-              SELECT id, orden_id, estudio_id, archivo_url, archivo_path, archivo_nombre, fecha
+              INSERT INTO resultado_archivos (
+                id, orden_id, estudio_id, archivo_url, archivo_path, archivo_nombre,
+                resultado_uuid, r2_key, r2_url, qr_base64, fecha
+              )
+              SELECT
+                id, orden_id, estudio_id, archivo_url, archivo_path, archivo_nombre,
+                NULL, NULL, NULL, NULL, fecha
               FROM resultado_archivos_old
             `, (copyErr) => {
               if (copyErr) {
@@ -217,6 +226,15 @@ function migrateResultadoArchivosTable() {
                 db.run(`CREATE INDEX IF NOT EXISTS idx_res_arch_orden ON resultado_archivos(orden_id)`, (indexErr) => {
                   if (indexErr) {
                     console.error(`Error en migracion (resultado_archivos_idx_orden): ${indexErr.message}`);
+                  }
+                });
+                db.run(`
+                  CREATE UNIQUE INDEX IF NOT EXISTS idx_resultado_archivos_uuid
+                  ON resultado_archivos(resultado_uuid)
+                  WHERE resultado_uuid IS NOT NULL AND TRIM(resultado_uuid) <> ''
+                `, (uuidIndexErr) => {
+                  if (uuidIndexErr) {
+                    console.error(`Error en migracion (resultado_archivos_idx_uuid): ${uuidIndexErr.message}`);
                   }
                 });
               });
@@ -541,6 +559,10 @@ db.serialize(async () => {
     'idx_resultado_archivos_uuid'
   );
   migrateResultadoArchivosTable();
+  migrateColumn(`ALTER TABLE resultado_archivos ADD COLUMN resultado_uuid TEXT`, 'resultado_archivos_repair_resultado_uuid');
+  migrateColumn(`ALTER TABLE resultado_archivos ADD COLUMN r2_key TEXT`, 'resultado_archivos_repair_r2_key');
+  migrateColumn(`ALTER TABLE resultado_archivos ADD COLUMN r2_url TEXT`, 'resultado_archivos_repair_r2_url');
+  migrateColumn(`ALTER TABLE resultado_archivos ADD COLUMN qr_base64 TEXT`, 'resultado_archivos_repair_qr_base64');
 
   /* =========================
      EMPRESA
