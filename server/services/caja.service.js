@@ -9,7 +9,7 @@ const crypto   = require('crypto');
 
 const { run, get, all, withTransaction } = require('../db');
 const authMiddleware    = require('../middlewares/authMiddleware');
-const ordenService = require('../services/ordenService');
+const { registrarPagoSeguro } = require('./ordenService');
 const resultadoStorage = require('../services/resultadoStorageService');
 const {
   ROLES,
