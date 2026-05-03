@@ -1,7 +1,10 @@
 import ResultadoViewer from "./resultado-viewer";
 
 function buildPdfUrl(id) {
-  const r2Url = process.env.NEXT_PUBLIC_R2_URL?.replace(/\/+$/, "");
+  const r2Url = (
+    process.env.NEXT_PUBLIC_R2_URL ||
+    "https://pub-0a2e3c7a919947f49c5ccb667d660d91.r2.dev"
+  ).replace(/\/+$/, "");
   const objectTemplate =
     process.env.NEXT_PUBLIC_R2_OBJECT_TEMPLATE || "resultado-{id}.pdf";
 

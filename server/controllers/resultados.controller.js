@@ -7,8 +7,8 @@ const { s3Client } = require('../config/s3Client');
 const { get, run } = require('../db');
 
 const R2_BUCKET = process.env.R2_BUCKET || 'resultados';
-const RESULTADO_VIEWER_BASE_URL = process.env.RESULTADO_VIEWER_BASE_URL || 'https://mi-visor-lab.vercel.app/resultado/';
-const R2_PUBLIC_BASE_URL = process.env.R2_PUBLIC_BASE_URL || '';
+const RESULTADO_VIEWER_BASE_URL = process.env.RESULTADO_VIEWER_BASE_URL || 'https://system-lab-mu.vercel.app/resultado/';
+const R2_PUBLIC_BASE_URL = process.env.R2_PUBLIC_BASE_URL || 'https://pub-0a2e3c7a919947f49c5ccb667d660d91.r2.dev';
 
 const uploadResultadoPdf = multer({
   storage: multer.memoryStorage(),
