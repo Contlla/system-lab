@@ -7,4 +7,6 @@ certs/
 *.pem
 storage/resultados/
 database/*.db
+database/*.db-shm
+database/*.db-wal
 public/uploads/resultados/
