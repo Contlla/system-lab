@@ -10,3 +10,5 @@ database/*.db
 database/*.db-shm
 database/*.db-wal
 public/uploads/resultados/
+
+.vercel
