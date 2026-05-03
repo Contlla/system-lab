@@ -33,6 +33,7 @@ if (!SECRET) {
   console.error('FATAL: JWT_SECRET environment variable is not set.');
   process.exit(1);
 }
+const RESULTADO_VIEWER_BASE_URL = process.env.RESULTADO_VIEWER_BASE_URL || 'https://system-lab-mu.vercel.app/resultado/';
 
 const PUBLIC_DIR = path.join(__dirname, '../../public');
 const R2_BUCKET = process.env.R2_BUCKET || 'resultados';
@@ -610,8 +611,12 @@ const get_resultados_orden_by_folio = async (req, res) => {
     const archivos = archivosRows.map((archivo) => {
       const current = String(archivo.archivo_url || '');
       const filename = path.basename(current || archivo.archivo_path || '');
+      const viewerUrl = archivo.resultado_uuid
+        ? `${RESULTADO_VIEWER_BASE_URL}${encodeURIComponent(archivo.resultado_uuid)}`
+        : '';
       return {
         ...archivo,
+        viewer_url: viewerUrl,
         archivo_url: current.startsWith('/api/resultados/ver/')
           ? current
           : `/api/resultados/ver/${filename}`,

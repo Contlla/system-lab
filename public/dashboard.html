@@ -2334,6 +2334,32 @@
 
     .res-btn-download:hover { background: #d5f5e3; }
 
+    .res-btn-qr { background: #fef9e7; color: #9a6a00; border: 1.5px solid #f7dc6f; }
+
+    .res-btn-qr:hover { background: #fcf3cf; }
+
+    .res-btn-copy-link { background: #f4ecf7; color: #6c3483; border: 1.5px solid #d7bde2; }
+
+    .res-btn-copy-link:hover { background: #eadcf0; }
+
+    .res-qr-inline { display: flex; align-items: center; justify-content: center; }
+
+    .res-qr-thumb {
+
+      width: 58px; height: 58px; border-radius: 6px; border: 1px solid #d5dbdb;
+
+      background: white; padding: 4px; object-fit: contain; flex-shrink: 0;
+
+    }
+
+    .res-qr-thumb-empty {
+
+      display: flex; align-items: center; justify-content: center;
+
+      color: var(--muted); font-size: 10px; font-weight: 800; background: #f8f9f9;
+
+    }
+
     .res-resultado-card {
 
       border: 1.5px solid var(--green); border-radius: 10px;
@@ -2357,6 +2383,22 @@
     .res-resultado-card-info { flex: 1; min-width: 0; }
 
     .res-resultado-card-filename { font-size: 11px; font-weight: 600; color: var(--green-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .res-resultado-card-qr {
+
+      margin-top: 8px; display: flex; align-items: center; gap: 8px;
+
+      font-size: 10px; font-weight: 800; color: #566573;
+
+    }
+
+    .res-resultado-card-qr img {
+
+      width: 56px; height: 56px; border: 1px solid #d5dbdb; border-radius: 6px;
+
+      background: white; padding: 4px; object-fit: contain;
+
+    }
 
     .res-resultado-card-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
 

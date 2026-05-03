@@ -1621,18 +1621,25 @@ document.getElementById('modal-bloqueo').addEventListener('click', function (e) 
              const nombre = escapeHTML(archivo.archivo_nombre || 'Resultado');
              const url = escapeHTML(safeRelativeUrl(archivo.archivo_url));
              const meta = archivo.estudio_nombre ? ` · ${escapeHTML(archivo.estudio_nombre)}` : '';
+             const qrSrc = resSafeQrDataUrl(archivo.qr_base64);
+             const qrHtml = qrSrc
+               ? `<img class="res-qr-thumb" src="${escapeHTML(qrSrc)}" alt="QR de resultado">`
+               : '<div class="res-qr-thumb res-qr-thumb-empty">QR</div>';
              return `
                <div class="res-existing-file" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-                 <div style="display:flex;align-items:center;gap:10px;min-width:220px;">
+                 <div style="display:flex;align-items:center;gap:10px;min-width:220px;flex:1;">
                    <span style="font-size:20px;">${(archivo.archivo_nombre || '').toLowerCase().endsWith('.pdf') ? '📄' : '🖼️'}</span>
                    <div>
                      <div class="res-existing-file-link" title="${nombre}">${nombre}</div>
                      <div style="font-size:11px;color:var(--muted);font-weight:600;">${escapeHTML((archivo.fecha || '').substring(0, 10) || 'Sin fecha')}${meta}</div>
                    </div>
                  </div>
+                 <div class="res-qr-inline">${qrHtml}</div>
                  <div class="res-file-actions">
                    <button class="res-btn-file-action res-btn-view" data-url="${url}" data-nombre="${nombre}">👁️ Ver</button>
-                  <a class="res-btn-file-action res-btn-download" href="#" data-url="${url}" data-nombre="${nombre}">⬇️ Descargar</a>
+                   <a class="res-btn-file-action res-btn-download" href="#" data-url="${url}" data-nombre="${nombre}">⬇️ Descargar</a>
+                   <button class="res-btn-file-action res-btn-qr" data-archivo="${archivo.id}">QR</button>
+                   <button class="res-btn-file-action res-btn-copy-link" data-archivo="${archivo.id}">Copiar enlace</button>
                    <button class="res-btn-delete-file" data-archivo="${archivo.id}">🗑️</button>
                  </div>
                </div>`;
@@ -1663,6 +1670,18 @@ document.getElementById('modal-bloqueo').addEventListener('click', function (e) 
         } catch {
           toast('No se pudo descargar el archivo', '❌');
         }
+      });
+    });
+    savedWrap.querySelectorAll('.res-btn-qr').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const archivo = resArchivos.find((item) => String(item.id) === String(btn.dataset.archivo));
+        resImprimirQrResultado(archivo, resOrdenActual);
+      });
+    });
+    savedWrap.querySelectorAll('.res-btn-copy-link').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const archivo = resArchivos.find((item) => String(item.id) === String(btn.dataset.archivo));
+        resCopiarLinkResultado(archivo);
       });
     });
     savedWrap.querySelectorAll('.res-btn-delete-file').forEach((btn) => {
@@ -1894,6 +1913,7 @@ document.getElementById('modal-bloqueo').addEventListener('click', function (e) 
       const r = await api(`/api/resultados/orden/${encodeURIComponent(orden.folio)}`);
       if (!r.ok) throw new Error();
       const data = await r.json();
+      resOrdenCompActual = data.orden;
       resRenderCompOrdenInfo(data.orden);
       resRenderCompResultados(data.archivos || []);
     } catch (err) {
@@ -1969,6 +1989,18 @@ document.getElementById('modal-bloqueo').addEventListener('click', function (e) 
       fname.textContent = archivo.archivo_nombre || 'resultado';
       const actions = document.createElement('div');
       actions.className = 'res-resultado-card-actions';
+      const qrSrc = resSafeQrDataUrl(archivo.qr_base64);
+      let qrWrap = null;
+      if (qrSrc) {
+        qrWrap = document.createElement('div');
+        qrWrap.className = 'res-resultado-card-qr';
+        const qrImg = document.createElement('img');
+        qrImg.src = qrSrc;
+        qrImg.alt = 'QR de resultado';
+        const qrText = document.createElement('div');
+        qrText.textContent = 'QR listo para etiqueta';
+        qrWrap.append(qrImg, qrText);
+      }
       const btnVer = document.createElement('button');
       btnVer.className = 'res-btn-file-action res-btn-view';
       btnVer.textContent = '👁️ Ver';
@@ -1991,12 +2023,121 @@ document.getElementById('modal-bloqueo').addEventListener('click', function (e) 
           toast('No se pudo descargar el archivo', '❌');
         }
       });
-      actions.append(btnVer, linkDl);
-      info.append(fname, actions);
+      const btnQr = document.createElement('button');
+      btnQr.className = 'res-btn-file-action res-btn-qr';
+      btnQr.textContent = 'QR';
+      btnQr.addEventListener('click', () => resImprimirQrResultado(archivo, resOrdenCompActual));
+      const btnCopy = document.createElement('button');
+      btnCopy.className = 'res-btn-file-action res-btn-copy-link';
+      btnCopy.textContent = 'Copiar enlace';
+      btnCopy.addEventListener('click', () => resCopiarLinkResultado(archivo));
+      actions.append(btnVer, linkDl, btnQr, btnCopy);
+      if (qrWrap) info.append(fname, qrWrap, actions);
+      else info.append(fname, actions);
       body.append(icon, info);
       card.append(head, body);
       grid.appendChild(card);
     });
+  }
+  function resSafeQrDataUrl(value) {
+    const text = String(value || '').trim();
+    return /^data:image\/(png|jpeg|webp|svg\+xml);base64,[A-Za-z0-9+/=]+$/i.test(text) ? text : '';
+  }
+  function resPublicResultUrl(archivo = {}) {
+    if (archivo.viewer_url) return String(archivo.viewer_url);
+    if (archivo.resultado_uuid) return `https://system-lab-mu.vercel.app/resultado/${encodeURIComponent(archivo.resultado_uuid)}`;
+    if (archivo.r2_url && /^https:\/\//i.test(String(archivo.r2_url))) return String(archivo.r2_url);
+    return '';
+  }
+  async function resCopiarLinkResultado(archivo) {
+    const url = resPublicResultUrl(archivo);
+    if (!url) {
+      toast('Este archivo todavia no tiene enlace publico', '⚠️');
+      return;
+    }
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const area = document.createElement('textarea');
+        area.value = url;
+        area.style.position = 'fixed';
+        area.style.opacity = '0';
+        document.body.appendChild(area);
+        area.select();
+        document.execCommand('copy');
+        area.remove();
+      }
+      toast('Enlace copiado');
+    } catch {
+      toast('No se pudo copiar el enlace', '❌');
+    }
+  }
+  function resImprimirQrResultado(archivo, orden) {
+    const qrSrc = resSafeQrDataUrl(archivo?.qr_base64);
+    const url = resPublicResultUrl(archivo);
+    if (!qrSrc || !url) {
+      toast('Este archivo todavia no tiene QR imprimible', '⚠️');
+      return;
+    }
+    const paciente = escapeHTML(orden?.paciente_nombre || 'Paciente');
+    const folio = escapeHTML(orden?.folio || '');
+    const estudio = escapeHTML(archivo?.estudio_nombre || archivo?.archivo_nombre || 'Resultado digital');
+    const uuid = escapeHTML(archivo?.resultado_uuid || '');
+    const safeUrl = escapeHTML(url);
+    const safeQr = escapeHTML(qrSrc);
+    const win = window.open('', '_blank', 'width=520,height=720');
+    if (!win) {
+      toast('Permite ventanas emergentes para imprimir el QR', '⚠️');
+      return;
+    }
+    win.document.write(`<!doctype html>
+      <html lang="es">
+      <head>
+        <meta charset="utf-8">
+        <title>QR ${folio}</title>
+        <style>
+          * { box-sizing: border-box; }
+          body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #17202a; background: #f4f6f7; }
+          .sheet { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 18px; }
+          .label { width: 78mm; min-height: 58mm; background: #fff; border: 1px solid #1f618d; border-radius: 8px; padding: 12px; text-align: center; }
+          .brand { font-size: 16px; font-weight: 800; color: #1f618d; }
+          .subtitle { margin-top: 2px; font-size: 10px; font-weight: 700; color: #566573; text-transform: uppercase; letter-spacing: .4px; }
+          img { width: 34mm; height: 34mm; margin: 8px auto 6px; display: block; }
+          .line { font-size: 11px; margin: 2px 0; font-weight: 700; }
+          .muted { color: #566573; font-weight: 600; }
+          .url { margin-top: 6px; font-size: 8px; color: #566573; word-break: break-all; }
+          .actions { margin-top: 14px; text-align: center; }
+          button { height: 36px; border: 0; border-radius: 7px; padding: 0 14px; background: #1f618d; color: #fff; font-weight: 800; cursor: pointer; }
+          @media print {
+            body { background: #fff; }
+            .sheet { padding: 0; min-height: auto; display: block; }
+            .label { margin: 0; border-color: #000; break-inside: avoid; }
+            .actions { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="sheet">
+          <div>
+            <div class="label">
+              <div class="brand">Laboratorio Clinico</div>
+              <div class="subtitle">Resultado digital</div>
+              <img src="${safeQr}" alt="QR de resultado">
+              <div class="line">Folio: ${folio}</div>
+              <div class="line muted">Paciente: ${paciente}</div>
+              <div class="line muted">${estudio}</div>
+              ${uuid ? `<div class="line muted">ID: ${uuid}</div>` : ''}
+              <div class="url">${safeUrl}</div>
+            </div>
+            <div class="actions"><button onclick="window.print()">Imprimir QR</button></div>
+          </div>
+        </div>
+      </body>
+      </html>`);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 300);
   }
   /* ══ VIEWER ══ */
   async function resAbrirViewer(url, nombre) {
