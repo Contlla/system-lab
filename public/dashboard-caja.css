@@ -1,26 +1,26 @@
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+﻿    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --green:      #2ecc71;
-      --green-dark: #27ae60;
-      --green-bg:   #eafaf1;
+      --green:      #74b74a;
+      --green-dark: #5d993a;
+      --green-bg:   #edf8e8;
       --red:        #e74c3c;
       --red-dark:   #c0392b;
       --red-bg:     #fdedec;
-      --blue:       #3498db;
-      --blue-bg:    #ebf5fb;
+      --blue:       #009cda;
+      --blue-bg:    #e8f7fd;
       --orange:     #e67e22;
       --orange-bg:  #fef9e7;
       --yellow:     #f1c40f;
       --purple:     #9b59b6;
       --purple-bg:  #f5eef8;
-      --bg:         #f0f2f5;
+      --bg:         #f3faf5;
       --surface:    #ffffff;
-      --border:     #e2e8f0;
-      --text:       #1a202c;
-      --muted:      #718096;
-      --shadow:     0 4px 20px rgba(0,0,0,0.08);
-      --shadow-sm:  0 1px 4px rgba(0,0,0,0.06);
+      --border:     #d7e8ef;
+      --text:       #15364a;
+      --muted:      #5f747d;
+      --shadow:     0 10px 28px rgba(21,54,74,0.08);
+      --shadow-sm:  0 2px 10px rgba(21,54,74,0.06);
       --radius:     14px;
       --radius-sm:  8px;
     }
@@ -33,7 +33,7 @@
       padding: 24px;
     }
 
-    /* ── TOPBAR ── */
+    /* â”€â”€ TOPBAR â”€â”€ */
     .topbar {
       display: flex;
       justify-content: space-between;
@@ -48,7 +48,7 @@
     .page-title { font-size: 1.4rem; font-weight: 800; letter-spacing: -0.5px; }
     .page-sub   { font-size: 13px; color: var(--muted); font-weight: 500; }
 
-    /* ── TABS ── */
+    /* â”€â”€ TABS â”€â”€ */
     .tabs {
       display: flex; gap: 4px;
       background: var(--surface);
@@ -70,12 +70,12 @@
     }
 
     .tab-btn:hover { background: var(--bg); color: var(--text); }
-    .tab-btn.active { background: var(--green); color: white; }
+    .tab-btn.active { background: var(--blue); color: white; }
 
     .tab-pane { display: none; }
     .tab-pane.active { display: block; }
 
-    /* ── CARDS RESUMEN ── */
+    /* â”€â”€ CARDS RESUMEN â”€â”€ */
     .summary-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
@@ -88,6 +88,7 @@
       border-radius: var(--radius);
       padding: 18px 20px;
       box-shadow: var(--shadow-sm);
+      border: 1px solid rgba(215,232,239,0.8);
       border-left: 4px solid transparent;
     }
 
@@ -104,7 +105,7 @@
     .sc-value.purple { color: var(--purple); }
     .sc-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
 
-    /* ── LAYOUT 2 COLS ── */
+    /* â”€â”€ LAYOUT 2 COLS â”€â”€ */
     .two-col {
       display: grid;
       grid-template-columns: 440px 1fr;
@@ -114,11 +115,12 @@
 
     @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
 
-    /* ── PANEL ── */
+    /* â”€â”€ PANEL â”€â”€ */
     .panel {
       background: var(--surface);
       border-radius: var(--radius);
       box-shadow: var(--shadow-sm);
+      border: 1px solid rgba(215,232,239,0.8);
       overflow: hidden;
     }
 
@@ -286,7 +288,7 @@
       color: var(--muted);
     }
 
-    /* ── FORM ── */
+    /* â”€â”€ FORM â”€â”€ */
     .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
     .field:last-child { margin-bottom: 0; }
 
@@ -306,14 +308,14 @@
     }
 
     .field input:focus, .field select:focus {
-      border-color: var(--green);
-      box-shadow: 0 0 0 3px rgba(46,204,113,0.12);
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(0,156,218,0.13);
       background: white;
     }
 
     .field input::placeholder { color: #a0aec0; }
 
-    /* ── ORDEN INFO ── */
+    /* â”€â”€ ORDEN INFO â”€â”€ */
     .orden-card {
       background: var(--bg);
       border-radius: var(--radius-sm);
@@ -346,7 +348,7 @@
     .val-red   { color: var(--red); }
     .val-mono  { font-family: 'DM Mono', monospace; }
 
-    /* ── ESTUDIOS LIST ── */
+    /* â”€â”€ ESTUDIOS LIST â”€â”€ */
     .estudios-list { margin: 10px 0; }
 
     .estudio-item {
@@ -355,7 +357,7 @@
       padding: 3px 0;
     }
 
-    /* ── METODO BTNS ── */
+    /* â”€â”€ METODO BTNS â”€â”€ */
     .metodo-grid {
       display: grid; grid-template-columns: repeat(3, 1fr);
       gap: 8px; margin-bottom: 14px;
@@ -376,9 +378,9 @@
     .metodo-btn:hover { border-color: var(--green); background: var(--green-bg); }
     .metodo-btn.selected { border-color: var(--green); background: var(--green-bg); color: var(--green-dark); }
 
-    /* ══════════════════════════════════════
-       PAGOS MIXTOS — Split Payment UI
-    ══════════════════════════════════════ */
+    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+       PAGOS MIXTOS â€” Split Payment UI
+    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
     /* Barra de progreso del saldo */
     .saldo-progress-wrap {
@@ -541,7 +543,7 @@
     .cambio-label { font-size: 12px; color: var(--green-dark); font-weight: 600; margin-bottom: 4px; }
     .cambio-amount { font-size: 2rem; font-weight: 800; color: var(--green-dark); font-family: 'DM Mono', monospace; }
 
-    /* Separador de sección split */
+    /* Separador de secciÃ³n split */
     .split-section-title {
       font-size: 11px;
       font-weight: 700;
@@ -562,7 +564,7 @@
       background: var(--border);
     }
 
-    /* ── BTN ── */
+    /* â”€â”€ BTN â”€â”€ */
     .btn {
       display: inline-flex; align-items: center; gap: 7px;
       padding: 11px 20px; border-radius: var(--radius-sm);
@@ -576,14 +578,14 @@
     .btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none !important; }
     .btn-block { width: 100%; justify-content: center; }
 
-    .btn-primary { background: var(--green); color: white; }
-    .btn-primary:hover:not(:disabled) { background: var(--green-dark); }
+    .btn-primary { background: var(--blue); color: white; }
+    .btn-primary:hover:not(:disabled) { background: #007eb0; }
 
     .btn-danger { background: var(--red); color: white; }
     .btn-danger:hover:not(:disabled) { background: var(--red-dark); }
 
     .btn-blue { background: var(--blue); color: white; }
-    .btn-blue:hover:not(:disabled) { background: #2980b9; }
+    .btn-blue:hover:not(:disabled) { background: #007eb0; }
 
     .btn-ghost {
       background: transparent; color: var(--muted);
@@ -597,7 +599,7 @@
     }
     .btn-outline-green:hover { background: var(--green-bg); }
 
-    /* Spinner dentro de botón */
+    /* Spinner dentro de botÃ³n */
     .btn-spinner {
       width: 14px; height: 14px;
       border: 2px solid rgba(255,255,255,0.4);
@@ -609,7 +611,7 @@
     .btn.loading .btn-spinner { display: block; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── TABLE ── */
+    /* â”€â”€ TABLE â”€â”€ */
     table { width: 100%; border-collapse: collapse; }
 
     thead th {
@@ -637,7 +639,7 @@
     .badge-tarjeta      { background: var(--blue-bg);  color: var(--blue); }
     .badge-transferencia{ background: var(--purple-bg);color: var(--purple); }
 
-    /* ── HISTORIAL TOOLBAR ── */
+    /* â”€â”€ HISTORIAL TOOLBAR â”€â”€ */
     .hist-toolbar {
       display: flex; gap: 10px; align-items: center;
       padding: 14px 20px; border-bottom: 1px solid var(--border);
@@ -652,9 +654,9 @@
       background: var(--bg); outline: none;
       transition: border-color 0.2s;
     }
-    .date-input:focus { border-color: var(--green); }
+    .date-input:focus { border-color: var(--blue); }
 
-    /* ── EMPTY ── */
+    /* â”€â”€ EMPTY â”€â”€ */
     .empty {
       padding: 50px 20px; text-align: center; color: var(--muted);
     }
@@ -662,7 +664,7 @@
     .empty-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
     .empty-sub   { font-size: 13px; }
 
-    /* ── STATUS ── */
+    /* â”€â”€ STATUS â”€â”€ */
     .status-msg {
       font-size: 13px; font-weight: 600; min-height: 18px;
       margin-top: 10px; text-align: center;
@@ -671,7 +673,7 @@
     .status-msg.success { color: var(--green-dark); }
     .status-msg.warn    { color: var(--orange); }
 
-    /* ── OFFLINE BANNER ── */
+    /* â”€â”€ OFFLINE BANNER â”€â”€ */
     .offline-banner {
       display: none;
       position: fixed;
@@ -686,27 +688,27 @@
     }
     .offline-banner.show { display: block; }
 
-    /* ══════════════════════════════════════════════════════════
-       TICKET TÉRMICO — Sewoo SLK-T213EB (80mm · 203 DPI)
-       ──────────────────────────────────────────────────────────
-       · Papel 80mm, área imprimible 72mm
-       · 203 DPI horizontal y vertical
-       · Cortador automático parcial/total
-       · ~42 chars/línea a 9pt Courier New
-       ──────────────────────────────────────────────────────────
-       Configuración requerida en el navegador al imprimir:
-         Tamaño de papel : 80mm × auto (o Sin márgenes)
-         Márgenes        : Ninguno / 0
+    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+       TICKET TÃ‰RMICO â€” Sewoo SLK-T213EB (80mm Â· 203 DPI)
+       â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+       Â· Papel 80mm, Ã¡rea imprimible 72mm
+       Â· 203 DPI horizontal y vertical
+       Â· Cortador automÃ¡tico parcial/total
+       Â· ~42 chars/lÃ­nea a 9pt Courier New
+       â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+       ConfiguraciÃ³n requerida en el navegador al imprimir:
+         TamaÃ±o de papel : 80mm Ã— auto (o Sin mÃ¡rgenes)
+         MÃ¡rgenes        : Ninguno / 0
          Escala          : 100%
          Cabecera/pie    : desactivados
-    ══════════════════════════════════════════════════════════ */
+    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
-    /* ── contenedor oculto en pantalla ── */
+    /* â”€â”€ contenedor oculto en pantalla â”€â”€ */
     #ticket-print { display: none; }
 
-    /* ── regla @page: define el papel para el diálogo de impresión ── */
+    /* â”€â”€ regla @page: define el papel para el diÃ¡logo de impresiÃ³n â”€â”€ */
     @page {
-      size: 80mm auto;   /* alto automático según contenido */
+      size: 80mm auto;   /* alto automÃ¡tico segÃºn contenido */
       margin: 0;
     }
 
@@ -716,19 +718,19 @@
       #ticket-print {
         display: block !important;
         position: static !important;
-        /* 72mm = área imprimible real de la SLK-T213EB */
+        /* 72mm = Ã¡rea imprimible real de la SLK-T213EB */
         width: 72mm !important;
         min-width: 72mm !important;
         max-width: 72mm !important;
         margin: 0 !important;
-        /* 8mm bottom = margen de seguridad para el cortador automático */
+        /* 8mm bottom = margen de seguridad para el cortador automÃ¡tico */
         padding: 2mm 0 8mm 0 !important;
         background: #fff !important;
         overflow: hidden !important;
         page-break-after: always;
       }
 
-      /* B/N puro — el papel térmico no reproduce grises con fidelidad */
+      /* B/N puro â€” el papel tÃ©rmico no reproduce grises con fidelidad */
       * {
         color: #000 !important;
         background: #fff !important;
@@ -738,10 +740,10 @@
         print-color-adjust: exact !important;
       }
 
-      /* Tipografía y layout del ticket */
+      /* TipografÃ­a y layout del ticket */
       #ticket-print {
         font-family: 'Courier New', 'Liberation Mono', monospace;
-        /* 9pt → ~42 chars/línea en 72mm @ 203dpi (fuente interna 12×24 dots) */
+        /* 9pt â†’ ~42 chars/lÃ­nea en 72mm @ 203dpi (fuente interna 12Ã—24 dots) */
         font-size: 9pt;
         line-height: 1.4;
         color: #000;
@@ -754,16 +756,16 @@
       .t-center    { text-align: center; }
       .t-right     { text-align: right; }
       .t-bold      { font-weight: 700; }
-      /* 11pt bold → ~15 dots alto @ 203dpi, legible en papel de baja calidad */
+      /* 11pt bold â†’ ~15 dots alto @ 203dpi, legible en papel de baja calidad */
       .t-large     { font-size: 11pt; font-weight: bold; }
       .t-xlarge    { font-size: 13pt; font-weight: bold; }
       .t-muted     { color: #333; }
-      /* Separador punteado — ASCII dash imprime mejor que border en térmica */
+      /* Separador punteado â€” ASCII dash imprime mejor que border en tÃ©rmica */
       .t-line      { border-top: 1px dashed #000; margin: 3px 0; height: 0; }
       .t-sep       { letter-spacing: 1px; }
       .t-no-break  { break-inside: avoid; page-break-inside: avoid; }
 
-      /* Logo: 180px ≈ 22.5mm @ 203dpi — máxima nitidez sin pixelar */
+      /* Logo: 180px â‰ˆ 22.5mm @ 203dpi â€” mÃ¡xima nitidez sin pixelar */
       .t-logo {
         width: 180px;
         max-height: 56px;
@@ -774,7 +776,7 @@
         image-rendering: crisp-edges;
       }
 
-      /* Título de bloque (ESTUDIOS, PAGOS, RESUMEN…) */
+      /* TÃ­tulo de bloque (ESTUDIOS, PAGOS, RESUMENâ€¦) */
       .t-block-title {
         margin: 2px 0 2px;
         font-size: 8pt;
@@ -783,7 +785,7 @@
         letter-spacing: 0.3px;
       }
 
-      /* Tablas de datos: meta (clave-valor), money (totales), list (ítems) */
+      /* Tablas de datos: meta (clave-valor), money (totales), list (Ã­tems) */
       .t-meta,
       .t-money,
       .t-list {
@@ -795,7 +797,7 @@
       .t-money td,
       .t-list td {
         vertical-align: top;
-        /* 1px padding → líneas más compactas, ahorra papel */
+        /* 1px padding â†’ lÃ­neas mÃ¡s compactas, ahorra papel */
         padding: 1px 0;
         font-size: 8.5pt;
         line-height: 1.35;
@@ -820,7 +822,7 @@
         word-break: break-word;
       }
 
-      /* Fila de total: 11pt bold para máxima visibilidad */
+      /* Fila de total: 11pt bold para mÃ¡xima visibilidad */
       .t-total {
         font-size: 11pt;
         font-weight: 700;
@@ -835,7 +837,7 @@
         letter-spacing: 1px;
       }
 
-      /* Tipo de documento (TICKET DE PAGO, CORTE DE CAJA…) */
+      /* Tipo de documento (TICKET DE PAGO, CORTE DE CAJAâ€¦) */
       .t-doctype {
         text-align: center;
         font-size: 9pt;
@@ -846,7 +848,7 @@
       }
     }
 
-    /* ── CORTE MODAL ── */
+    /* â”€â”€ CORTE MODAL â”€â”€ */
     .modal-backdrop {
       position: fixed; inset: 0;
       background: rgba(15,23,42,0.5);
@@ -898,10 +900,10 @@
     .corte-row:last-child { border-bottom: none; font-weight: 800; font-size: 16px; }
     .corte-row .lbl { color: var(--muted); }
 
-    /* ── TOAST ── */
+    /* â”€â”€ TOAST â”€â”€ */
     .toast {
       position: fixed; bottom: 24px; right: 24px;
-      background: #1a202c; color: white;
+      background: #15364a; color: white;
       padding: 13px 20px; border-radius: 12px;
       font-size: 13px; font-weight: 600;
       box-shadow: 0 8px 24px rgba(0,0,0,0.2);
@@ -912,7 +914,7 @@
     }
     .toast.show { transform: translateY(0); opacity: 1; }
 
-    /* ── PAGOS HISTORIAL DEL DÍA en tab cobro ── */
+    /* â”€â”€ PAGOS HISTORIAL DEL DÃA en tab cobro â”€â”€ */
     .pagos-recientes {
       margin-top: 12px;
     }
@@ -933,8 +935,9 @@
     }
     .pago-btn-ticket:hover { transform: scale(1.2); }
 
-    /* ── MODAL DETALLE CORTE ── */
+    /* â”€â”€ MODAL DETALLE CORTE â”€â”€ */
     #modal-detalle-corte .modal {
       overflow: hidden;
     }
     #mdc-tbody td { padding: 10px 14px; }
+
