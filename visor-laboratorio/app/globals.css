@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f1f5f9;
-  --foreground: #0f172a;
+  --background: #f3faf5;
+  --foreground: #15364a;
 }
 
 @theme inline {
@@ -19,8 +19,6 @@ body {
 }
 
 @media print {
-  header,
-  footer,
   button {
     display: none !important;
   }

@@ -12,8 +12,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Visor Laboratorio",
-  description: "Consulta digital de resultados de laboratorio",
+  title: "VICA Laboratorio",
+  description: "Consulta digital segura de resultados de VICA Laboratorio",
 };
 
 export default function RootLayout({ children }) {
