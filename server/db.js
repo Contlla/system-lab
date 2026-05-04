@@ -192,6 +192,7 @@ function migrateResultadoArchivosTable() {
               r2_key          TEXT,
               r2_url          TEXT,
               qr_base64       TEXT,
+              documento_tipo  TEXT    NOT NULL DEFAULT 'principal',
               fecha           TEXT    NOT NULL DEFAULT (datetime('now')),
               FOREIGN KEY (orden_id)   REFERENCES ordenes(id)  ON DELETE CASCADE ON UPDATE CASCADE,
               FOREIGN KEY (estudio_id) REFERENCES estudios(id) ON DELETE CASCADE ON UPDATE CASCADE
@@ -540,6 +541,7 @@ db.serialize(async () => {
       r2_key          TEXT,
       r2_url          TEXT,
       qr_base64       TEXT,
+      documento_tipo  TEXT    NOT NULL DEFAULT 'principal',
       fecha           TEXT    NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (orden_id)   REFERENCES ordenes(id)  ON DELETE CASCADE ON UPDATE CASCADE,
       FOREIGN KEY (estudio_id) REFERENCES estudios(id) ON DELETE CASCADE ON UPDATE CASCADE
@@ -552,17 +554,31 @@ db.serialize(async () => {
   migrateColumn(`ALTER TABLE resultado_archivos ADD COLUMN r2_key TEXT`, 'resultado_archivos_add_r2_key');
   migrateColumn(`ALTER TABLE resultado_archivos ADD COLUMN r2_url TEXT`, 'resultado_archivos_add_r2_url');
   migrateColumn(`ALTER TABLE resultado_archivos ADD COLUMN qr_base64 TEXT`, 'resultado_archivos_add_qr_base64');
+  migrateColumn(`ALTER TABLE resultado_archivos ADD COLUMN documento_tipo TEXT NOT NULL DEFAULT 'principal'`, 'resultado_archivos_add_documento_tipo');
   ddl(
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_resultado_archivos_uuid
      ON resultado_archivos(resultado_uuid)
      WHERE resultado_uuid IS NOT NULL AND TRIM(resultado_uuid) <> ''`,
     'idx_resultado_archivos_uuid'
   );
+  ddl(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_resultado_archivos_principal_estudio
+     ON resultado_archivos(orden_id, estudio_id)
+     WHERE documento_tipo = 'principal' AND estudio_id IS NOT NULL`,
+    'idx_resultado_archivos_principal_estudio'
+  );
+  ddl(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_resultado_archivos_principal_orden
+     ON resultado_archivos(orden_id)
+     WHERE documento_tipo = 'principal' AND estudio_id IS NULL`,
+    'idx_resultado_archivos_principal_orden'
+  );
   migrateResultadoArchivosTable();
   migrateColumn(`ALTER TABLE resultado_archivos ADD COLUMN resultado_uuid TEXT`, 'resultado_archivos_repair_resultado_uuid');
   migrateColumn(`ALTER TABLE resultado_archivos ADD COLUMN r2_key TEXT`, 'resultado_archivos_repair_r2_key');
   migrateColumn(`ALTER TABLE resultado_archivos ADD COLUMN r2_url TEXT`, 'resultado_archivos_repair_r2_url');
   migrateColumn(`ALTER TABLE resultado_archivos ADD COLUMN qr_base64 TEXT`, 'resultado_archivos_repair_qr_base64');
+  migrateColumn(`ALTER TABLE resultado_archivos ADD COLUMN documento_tipo TEXT NOT NULL DEFAULT 'principal'`, 'resultado_archivos_repair_documento_tipo');
 
   /* =========================
      EMPRESA

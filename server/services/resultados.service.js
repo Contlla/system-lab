@@ -6,7 +6,7 @@ const jwt      = require('jsonwebtoken');
 const bcrypt   = require('bcrypt');
 const multer   = require('multer');
 const crypto   = require('crypto');
-const { GetObjectCommand } = require('@aws-sdk/client-s3');
+const { DeleteObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
 
 const { run, get, all, withTransaction } = require('../db');
 const { s3Client } = require('../config/s3Client');
@@ -600,6 +600,7 @@ const get_resultados_orden_by_folio = async (req, res) => {
              ra.r2_key,
              ra.r2_url,
              ra.qr_base64,
+             ra.documento_tipo,
              ra.fecha,
              e.nombre    AS estudio_nombre,
              e.categoria AS estudio_categoria
@@ -778,10 +779,19 @@ const delete_resultados_archivo_by_id = async (req, res) => {
     const archivo = await get(`SELECT * FROM resultado_archivos WHERE id = ?`, [req.params.id]);
     if (!archivo) return res.status(404).json({ error: 'Archivo no encontrado' });
 
-    const fullPath = archivo.archivo_path
-      ? path.resolve(archivo.archivo_path)
-      : path.join(__dirname, '../../public', archivo.archivo_url);
-    fs.unlink(fullPath, () => {});
+    if (archivo.r2_key) {
+      await s3Client.send(new DeleteObjectCommand({
+        Bucket: R2_BUCKET,
+        Key: archivo.r2_key,
+      })).catch((err) => {
+        console.warn(`No se pudo eliminar objeto R2 ${archivo.r2_key}: ${err.message}`);
+      });
+    } else {
+      const fullPath = archivo.archivo_path
+        ? path.resolve(archivo.archivo_path)
+        : path.join(__dirname, '../../public', archivo.archivo_url);
+      fs.unlink(fullPath, () => {});
+    }
 
     await run(`DELETE FROM resultado_archivos WHERE id = ?`, [req.params.id]);
 

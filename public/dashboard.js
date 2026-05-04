@@ -1687,7 +1687,7 @@ document.getElementById('mc-search-estudios')?.addEventListener('input', functio
           <span class="res-estudio-num">02</span>
           <div>
             <div class="res-estudio-cat">ARCHIVOS DE RESULTADOS</div>
-            <div class="res-estudio-nombre">Sube uno o varios archivos para toda la orden</div>
+            <div class="res-estudio-nombre">Sube PDFs y asigna cada uno a su estudio</div>
           </div>
         </div>
         <div class="res-file-status ${resArchivos.length || resPendingFiles.length ? 'ok' : 'empty'}">
@@ -1714,16 +1714,31 @@ document.getElementById('mc-search-estudios')?.addEventListener('input', functio
     queueWrap.innerHTML = resPendingFiles.length
       ? `<div style="font-size:12px;font-weight:800;color:var(--muted);margin-bottom:8px;">Archivos en cola</div>
          <div style="display:grid;gap:8px;">
-           ${resPendingFiles.map((file, index) => `
+           ${resPendingFiles.map((entry, index) => {
+             const file = entry.file || entry;
+             return `
              <div class="res-file-preview">
                <span class="res-file-icon">${resFileIcon(file)}</span>
                <div class="res-file-info">
                  <div class="res-file-name">${escapeHTML(file.name)}</div>
                  <div class="res-file-size">${resFmtSize(file.size)}</div>
+                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+                   <select class="field-input res-file-study-select" data-index="${index}" style="height:34px;min-width:220px;font-size:12px;padding:0 9px;">
+                     <option value="">Resultado general de la orden</option>
+                     ${resEstudios.map((estudio) => {
+                       const id = String(estudio.estudio_id || estudio.id || '');
+                       return `<option value="${escapeHTML(id)}" ${String(entry.estudioId || '') === id ? 'selected' : ''}>${escapeHTML(estudio.nombre)}</option>`;
+                     }).join('')}
+                   </select>
+                   <select class="field-input res-file-type-select" data-index="${index}" style="height:34px;min-width:150px;font-size:12px;padding:0 9px;">
+                     <option value="principal" ${entry.documentoTipo !== 'adicional' ? 'selected' : ''}>Principal</option>
+                     <option value="adicional" ${entry.documentoTipo === 'adicional' ? 'selected' : ''}>Adicional</option>
+                   </select>
+                 </div>
                </div>
                <button class="res-btn-remove-file" data-index="${index}">✕</button>
-             </div>
-           `).join('')}
+             </div>`;
+           }).join('')}
          </div>`
       : '';
 
@@ -1733,7 +1748,8 @@ document.getElementById('mc-search-estudios')?.addEventListener('input', functio
            ${resArchivos.map((archivo) => {
              const nombre = escapeHTML(archivo.archivo_nombre || 'Resultado');
              const url = escapeHTML(safeRelativeUrl(archivo.archivo_url));
-             const meta = archivo.estudio_nombre ? ` · ${escapeHTML(archivo.estudio_nombre)}` : '';
+             const tipo = archivo.documento_tipo === 'adicional' ? 'Adicional' : 'Principal';
+             const meta = archivo.estudio_nombre ? ` · ${escapeHTML(archivo.estudio_nombre)}` : ' · Orden general';
              const qrSrc = resSafeQrDataUrl(archivo.qr_base64);
              const qrHtml = qrSrc
                ? `<img class="res-qr-thumb" src="${escapeHTML(qrSrc)}" alt="QR de resultado">`
@@ -1744,7 +1760,7 @@ document.getElementById('mc-search-estudios')?.addEventListener('input', functio
                    <span style="font-size:20px;">${(archivo.archivo_nombre || '').toLowerCase().endsWith('.pdf') ? '📄' : '🖼️'}</span>
                    <div>
                      <div class="res-existing-file-link" title="${nombre}">${nombre}</div>
-                     <div style="font-size:11px;color:var(--muted);font-weight:600;">${escapeHTML((archivo.fecha || '').substring(0, 10) || 'Sin fecha')}${meta}</div>
+                     <div style="font-size:11px;color:var(--muted);font-weight:600;">${escapeHTML((archivo.fecha || '').substring(0, 10) || 'Sin fecha')} · ${tipo}${meta}</div>
                    </div>
                  </div>
                  <div class="res-qr-inline">${qrHtml}</div>
@@ -1753,6 +1769,7 @@ document.getElementById('mc-search-estudios')?.addEventListener('input', functio
                    <a class="res-btn-file-action res-btn-download" href="#" data-url="${url}" data-nombre="${nombre}">⬇️ Descargar</a>
                    <button class="res-btn-file-action res-btn-qr" data-archivo="${archivo.id}">QR</button>
                    <button class="res-btn-file-action res-btn-copy-link" data-archivo="${archivo.id}">Copiar enlace</button>
+                   <button class="res-btn-file-action res-btn-replace" data-archivo="${archivo.id}">Reemplazar</button>
                    <button class="res-btn-delete-file" data-archivo="${archivo.id}">🗑️</button>
                  </div>
                </div>`;
@@ -1765,6 +1782,18 @@ document.getElementById('mc-search-estudios')?.addEventListener('input', functio
         resPendingFiles.splice(Number(btn.dataset.index), 1);
         resRenderArchivoPanels();
         resRenderProgress();
+      });
+    });
+    queueWrap.querySelectorAll('.res-file-study-select').forEach((select) => {
+      select.addEventListener('change', () => {
+        const entry = resPendingFiles[Number(select.dataset.index)];
+        if (entry) entry.estudioId = select.value || '';
+      });
+    });
+    queueWrap.querySelectorAll('.res-file-type-select').forEach((select) => {
+      select.addEventListener('change', () => {
+        const entry = resPendingFiles[Number(select.dataset.index)];
+        if (entry) entry.documentoTipo = select.value === 'adicional' ? 'adicional' : 'principal';
       });
     });
     savedWrap.querySelectorAll('.res-btn-view').forEach((btn) => {
@@ -1800,12 +1829,18 @@ document.getElementById('mc-search-estudios')?.addEventListener('input', functio
     savedWrap.querySelectorAll('.res-btn-delete-file').forEach((btn) => {
       btn.addEventListener('click', () => resEliminarArchivo(btn.dataset.archivo));
     });
+    savedWrap.querySelectorAll('.res-btn-replace').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const archivo = resArchivos.find((item) => String(item.id) === String(btn.dataset.archivo));
+        resSeleccionarReemplazo(archivo);
+      });
+    });
   }
   function resBuildDropArea(targetId, label) {
     return `
       <div class="res-drop-area" id="res-drop-${targetId}">
-        <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tiff,.bmp" data-target="${targetId}" multiple>
-        <div class="res-drop-label"><strong>${label}</strong> — arrastra o haz clic<br><span style="font-size:11px;">PDF · JPG · PNG · WEBP · TIFF</span></div>
+        <input type="file" accept=".pdf,application/pdf" data-target="${targetId}" multiple>
+        <div class="res-drop-label"><strong>${label}</strong> — arrastra o haz clic<br><span style="font-size:11px;">PDF de hasta 20 MB</span></div>
       </div>`;
   }
   function resWireDrop(targetId) {
@@ -1829,19 +1864,46 @@ document.getElementById('mc-search-estudios')?.addEventListener('input', functio
   function resHandleFiles(files) {
     const validos = [];
     files.forEach((file) => {
-      const permitido = RES_TIPOS_VALIDOS.includes(file.type) ||
-        RES_EXT_VALIDAS.some(ext => file.name.toLowerCase().endsWith(ext));
+      const permitido = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
       if (!permitido) return;
       if (file.size > 20 * 1024 * 1024) return;
       validos.push(file);
     });
     if (!validos.length) {
-      toast('Solo se permiten PDF o imagenes de hasta 20 MB', '❌');
+      toast('Solo se permiten PDF de hasta 20 MB', '❌');
       return;
     }
-    resPendingFiles.push(...validos);
+    validos.forEach((file, index) => {
+      const estudio = resDefaultStudyForPending(index);
+      resPendingFiles.push({
+        file,
+        estudioId: estudio ? String(estudio.estudio_id || estudio.id || '') : '',
+        documentoTipo: estudio && resTienePrincipal(estudio.estudio_id || estudio.id) ? 'adicional' : 'principal',
+        replaceId: null,
+      });
+    });
     resRenderArchivoPanels();
     resRenderProgress();
+  }
+  function resTienePrincipal(estudioId) {
+    const normalized = String(estudioId || '');
+    return resArchivos.some((archivo) =>
+      archivo.documento_tipo !== 'adicional' &&
+      String(archivo.estudio_id || '') === normalized
+    );
+  }
+  function resDefaultStudyForPending(offset = 0) {
+    if (!resEstudios.length) return null;
+    const usados = new Set([
+      ...resArchivos
+        .filter((archivo) => archivo.documento_tipo !== 'adicional')
+        .map((archivo) => String(archivo.estudio_id || '')),
+      ...resPendingFiles
+        .filter((entry) => entry.documentoTipo !== 'adicional')
+        .map((entry) => String(entry.estudioId || '')),
+    ]);
+    const disponibles = resEstudios.filter((estudio) => !usados.has(String(estudio.estudio_id || estudio.id || '')));
+    return disponibles[offset] || disponibles[0] || resEstudios[offset] || resEstudios[0];
   }
   /* ── Eliminar archivo existente ── */
   async function resEliminarArchivo(archivoId) {
@@ -1872,7 +1934,12 @@ document.getElementById('mc-search-estudios')?.addEventListener('input', functio
     btn.disabled = true; btn.textContent = 'Subiendo…';
     const fd = new FormData();
     fd.append('orden_id', resOrdenActual.id);
-    resPendingFiles.forEach((file) => fd.append('archivos', file));
+    resPendingFiles.forEach((entry) => {
+      fd.append('archivos', entry.file || entry);
+      fd.append('estudio_ids', entry.estudioId || '');
+      fd.append('documento_tipos', entry.documentoTipo === 'adicional' ? 'adicional' : 'principal');
+      fd.append('reemplazar_ids', entry.replaceId || '');
+    });
     try {
       const r = await (window.LabApi?.apiFetch || fetch)('/api/resultados/subir', {
         method: 'POST',
@@ -1895,6 +1962,51 @@ document.getElementById('mc-search-estudios')?.addEventListener('input', functio
       toast('Error al conectar', '❌');
     } finally {
       btn.disabled = false; btn.textContent = '💾 Guardar archivos';
+    }
+  }
+  function resSeleccionarReemplazo(archivo) {
+    if (!archivo) return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf';
+    input.addEventListener('change', async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const permitido = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      if (!permitido || file.size > 20 * 1024 * 1024) {
+        toast('Selecciona un PDF de hasta 20 MB', '❌');
+        return;
+      }
+      await resSubirReemplazo(file, archivo);
+    });
+    input.click();
+  }
+  async function resSubirReemplazo(file, archivo) {
+    const fd = new FormData();
+    fd.append('orden_id', resOrdenActual.id);
+    fd.append('archivos', file);
+    fd.append('estudio_ids', archivo.estudio_id || '');
+    fd.append('documento_tipos', archivo.documento_tipo === 'adicional' ? 'adicional' : 'principal');
+    fd.append('reemplazar_ids', archivo.id);
+    try {
+      const r = await (window.LabApi?.apiFetch || fetch)('/api/resultados/subir', {
+        method: 'POST',
+        body: fd
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        toast(data?.error || 'No se pudo reemplazar el archivo', '❌');
+        return;
+      }
+      resArchivos = [
+        ...(data.archivos || []),
+        ...resArchivos.filter((item) => String(item.id) !== String(archivo.id))
+      ];
+      resRenderArchivoPanels();
+      resRenderProgress();
+      toast('Archivo reemplazado correctamente');
+    } catch {
+      toast('Error al conectar', '❌');
     }
   }
   async function resMarcarCompletada() {
