@@ -480,6 +480,32 @@
 
     .dash-table tbody tr[style*="cursor"]:hover { background: #edf8e8; }
 
+    /* ── VIEW ESTADISTICAS ── */
+
+    .stats-toolbar { display: flex; align-items: end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+    .stats-filter-grid { display: grid; grid-template-columns: repeat(5, minmax(130px, 1fr)); gap: 10px; flex: 1; min-width: 280px; }
+    .stats-field { display: flex; flex-direction: column; gap: 5px; }
+    .stats-field label { font-size: 10px; color: var(--muted); font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
+    .stats-field input, .stats-field select {
+      height: 38px; border: 1.5px solid var(--border); border-radius: 8px; background: var(--surface);
+      padding: 0 10px; color: var(--text); font: inherit; font-size: 13px; outline: none;
+    }
+    .stats-field input:focus, .stats-field select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,156,218,.13); }
+    .stats-grid { display: grid; grid-template-columns: 1.25fr .85fr; gap: 16px; margin-bottom: 16px; }
+    .stats-card-body { padding: 16px 18px; }
+    .stats-chart-wrap { height: 280px; position: relative; }
+    .stats-table { width: 100%; border-collapse: collapse; }
+    .stats-table th {
+      background: var(--blue); color: white; padding: 10px 12px; font-size: 11px; text-transform: uppercase;
+      letter-spacing: .4px; text-align: left;
+    }
+    .stats-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+    .stats-table tbody tr:hover { background: #f9fcfb; }
+    .stats-rank { font-family: 'DM Mono', monospace; color: var(--muted); font-size: 11px; font-weight: 700; }
+    .stats-money { font-family: 'DM Mono', monospace; font-weight: 700; color: var(--green-dark); white-space: nowrap; }
+    @media (max-width: 1100px) { .stats-filter-grid { grid-template-columns: repeat(2, minmax(130px, 1fr)); } .stats-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 640px) { .stats-filter-grid { grid-template-columns: 1fr; } .stats-chart-wrap { height: 240px; } }
+
 
 
     /* ── VIEW RESULTADOS ── */
@@ -2632,6 +2658,7 @@
   <div class="sidebar-section-label">Principal</div>
 
   <div class="nav-item active" data-view="inicio"          onclick="goTo('inicio')">         <span class="nav-icon">🏠</span> Inicio</div>
+  <div class="nav-item"        data-view="estadisticas"    onclick="goTo('estadisticas')">   <span class="nav-icon">📊</span> Estadísticas</div>
 
   <div class="nav-item"        data-view="nueva-orden"     onclick="goTo('nueva-orden')">    <span class="nav-icon">➕</span> Nueva Orden</div>
 
@@ -2738,6 +2765,98 @@
 
       </div>
 
+    </div>
+
+
+    <!-- ══ ESTADISTICAS ══ -->
+
+    <div class="view" id="view-estadisticas">
+      <div class="stats-toolbar">
+        <div class="stats-filter-grid">
+          <div class="stats-field">
+            <label for="stats-periodo">Periodo</label>
+            <select id="stats-periodo">
+              <option value="hoy">Hoy</option>
+              <option value="semana">Esta semana</option>
+              <option value="mes" selected>Este mes</option>
+              <option value="mes_anterior">Mes anterior</option>
+              <option value="rango">Rango personalizado</option>
+            </select>
+          </div>
+          <div class="stats-field">
+            <label for="stats-desde">Desde</label>
+            <input id="stats-desde" type="date">
+          </div>
+          <div class="stats-field">
+            <label for="stats-hasta">Hasta</label>
+            <input id="stats-hasta" type="date">
+          </div>
+          <div class="stats-field">
+            <label for="stats-sucursal">Sucursal</label>
+            <select id="stats-sucursal"><option value="">Todas</option></select>
+          </div>
+          <div class="stats-field">
+            <label for="stats-limit">Top estudios</label>
+            <select id="stats-limit">
+              <option value="10">Top 10</option>
+              <option value="25" selected>Top 25</option>
+              <option value="50">Top 50</option>
+              <option value="100">Top 100</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-primary" id="stats-btn-aplicar" type="button">Aplicar</button>
+          <button class="btn btn-secondary" id="stats-btn-export" type="button">Exportar CSV</button>
+        </div>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-card"><div class="metric-label">Ventas del periodo</div><div class="metric-value" id="stats-ventas">$0.00</div></div>
+        <div class="metric-card"><div class="metric-label">Cobrado</div><div class="metric-value" id="stats-cobrado" style="color:var(--blue)">$0.00</div></div>
+        <div class="metric-card"><div class="metric-label">Ordenes</div><div class="metric-value" id="stats-ordenes">0</div></div>
+        <div class="metric-card"><div class="metric-label">Estudios vendidos</div><div class="metric-value" id="stats-estudios">0</div></div>
+        <div class="metric-card"><div class="metric-label">Ticket promedio</div><div class="metric-value" id="stats-ticket" style="color:var(--green-dark)">$0.00</div></div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📈 Ventas por día</div>
+            <span id="stats-range-label" style="font-size:12px;color:var(--muted);font-weight:700;"></span>
+          </div>
+          <div class="stats-card-body"><div class="stats-chart-wrap"><canvas id="stats-chart-ventas"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">🧪 Categorías</div></div>
+          <div class="stats-card-body"><div class="stats-chart-wrap"><canvas id="stats-chart-categorias"></canvas></div></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <div class="card-title">🏆 Estudios mas vendidos</div>
+          <span id="stats-table-count" style="font-size:12px;color:var(--muted);font-weight:700;">—</span>
+        </div>
+        <div class="dash-table-wrap" style="box-shadow:none;border-radius:0;">
+          <table class="stats-table">
+            <thead>
+              <tr>
+                <th style="width:60px;">#</th>
+                <th>Estudio</th>
+                <th>Categoría</th>
+                <th>Cantidad</th>
+                <th>Ingresos</th>
+                <th>Precio prom.</th>
+                <th>Ordenes</th>
+              </tr>
+            </thead>
+            <tbody id="stats-estudios-tbody">
+              <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px;">Carga las estadísticas para ver resultados</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
 
@@ -4796,6 +4915,7 @@
 
 
 <script src="/shared/api-client.js"></script>
+<script src="/chart.umd.min.js"></script>
 <script src="/dashboard.js"></script>
 
 <script src="/dashboard-buscar.js"></script>

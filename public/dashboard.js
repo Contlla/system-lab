@@ -56,6 +56,7 @@ try {
 
   const viewPermissions = {
     'inicio': 'dashboard.view',
+    'estadisticas': 'dashboard.view',
     'nueva-orden': 'ordenes.create',
     'buscar': 'ordenes.view',
     'pacientes': 'pacientes.view',
@@ -158,6 +159,7 @@ async function api(url, opts = {}) {
 
 const VIEWS = {
   'inicio': ['🏠 Inicio', 'Inicio'],
+  'estadisticas': ['📊 Estadísticas', 'Estadísticas'],
   'nueva-orden': ['➕ Nueva Orden', 'Nueva Orden'],
   'buscar': ['🔍 Buscar Orden', 'Buscar Orden'],
   'pacientes': ['👥 Pacientes', 'Pacientes'],
@@ -192,6 +194,7 @@ function goTo(v) {
     window.setNuevaOrdenStylesEnabled(v === 'nueva-orden');
   }
   if (v === 'inicio') loadDashboard();
+  if (v === 'estadisticas') statsIniciarVista();
   if (v === 'nueva-orden' && typeof window.initDashboardNuevaOrdenView === 'function') window.initDashboardNuevaOrdenView();
   if (v === 'buscar') bqIniciarVista();
   if (v === 'caja' && typeof window.cjIniciarVista === 'function') window.cjIniciarVista();
@@ -274,6 +277,251 @@ function _renderDashboard(d) {
     tr.append(tdFolio, tdPac, tdEstado, tdTotal, tdFecha);
     tbody.appendChild(tr);
   });
+}
+
+/* ── ESTADISTICAS ── */
+
+let statsInicializado = false;
+let statsVentasChart = null;
+let statsCategoriasChart = null;
+let statsUltimosEstudios = [];
+let statsUltimoRange = null;
+
+function statsEl(id) { return document.getElementById(id); }
+
+function statsMoney(value) {
+  return '$' + fmt(Number(value || 0));
+}
+
+function statsDateInput(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function statsSetDefaultDates() {
+  const now = new Date();
+  statsEl('stats-desde').value = statsDateInput(new Date(now.getFullYear(), now.getMonth(), 1));
+  statsEl('stats-hasta').value = statsDateInput(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+}
+
+function statsBuildParams() {
+  const params = new URLSearchParams({
+    periodo: statsEl('stats-periodo').value || 'mes',
+    limit: statsEl('stats-limit').value || '25',
+  });
+  const sucursal = statsEl('stats-sucursal').value;
+  if (sucursal) params.set('sucursal', sucursal);
+  if (params.get('periodo') === 'rango') {
+    params.set('desde', statsEl('stats-desde').value);
+    params.set('hasta', statsEl('stats-hasta').value);
+  }
+  return params;
+}
+
+async function statsCargarSucursales() {
+  try {
+    const r = await api('/api/estadisticas/sucursales');
+    if (!r.ok) return;
+    const sucursales = await r.json();
+    const select = statsEl('stats-sucursal');
+    const current = select.value;
+    select.innerHTML = '<option value="">Todas</option>';
+    (sucursales || []).forEach((sucursal) => {
+      const opt = document.createElement('option');
+      opt.value = sucursal;
+      opt.textContent = sucursal;
+      select.appendChild(opt);
+    });
+    select.value = current;
+  } catch (err) {
+    if (!err.isAuth) console.error(err);
+  }
+}
+
+function statsRenderResumen(resumen = {}) {
+  statsEl('stats-ventas').textContent = statsMoney(resumen.ventas);
+  statsEl('stats-cobrado').textContent = statsMoney(resumen.cobrado);
+  statsEl('stats-ordenes').textContent = Number(resumen.ordenes || 0).toLocaleString('es-MX');
+  statsEl('stats-estudios').textContent = Number(resumen.estudios_vendidos || 0).toLocaleString('es-MX');
+  statsEl('stats-ticket').textContent = statsMoney(resumen.ticket_promedio);
+}
+
+function statsChartColors(count) {
+  const palette = ['#009cda', '#74b74a', '#15364a', '#f39c12', '#9b59b6', '#e74c3c', '#5d993a', '#007eb0'];
+  return Array.from({ length: count }, (_, index) => palette[index % palette.length]);
+}
+
+function statsRenderVentasChart(rows = []) {
+  const ctx = statsEl('stats-chart-ventas');
+  if (!ctx || !window.Chart) return;
+  if (statsVentasChart) statsVentasChart.destroy();
+  statsVentasChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: rows.map((row) => row.fecha),
+      datasets: [
+        {
+          label: 'Ventas',
+          data: rows.map((row) => Number(row.ventas || 0)),
+          borderColor: '#009cda',
+          backgroundColor: 'rgba(0,156,218,0.12)',
+          tension: 0.28,
+          fill: true,
+        },
+        {
+          label: 'Cobrado',
+          data: rows.map((row) => Number(row.cobrado || 0)),
+          borderColor: '#74b74a',
+          backgroundColor: 'rgba(116,183,74,0.12)',
+          tension: 0.28,
+          fill: true,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom' } },
+      scales: { y: { beginAtZero: true } },
+    },
+  });
+}
+
+function statsRenderCategoriasChart(rows = []) {
+  const ctx = statsEl('stats-chart-categorias');
+  if (!ctx || !window.Chart) return;
+  if (statsCategoriasChart) statsCategoriasChart.destroy();
+  const labels = rows.map((row) => row.categoria || 'OTROS');
+  statsCategoriasChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data: rows.map((row) => Number(row.cantidad || 0)),
+        backgroundColor: statsChartColors(labels.length),
+        borderWidth: 0,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom' } },
+    },
+  });
+}
+
+function statsRenderEstudios(estudios = []) {
+  const tbody = statsEl('stats-estudios-tbody');
+  tbody.innerHTML = '';
+  statsEl('stats-table-count').textContent = `${estudios.length} estudio${estudios.length !== 1 ? 's' : ''}`;
+  if (!estudios.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px;">Sin ventas de estudios en el periodo seleccionado</td></tr>';
+    return;
+  }
+  const fragment = document.createDocumentFragment();
+  estudios.forEach((estudio, index) => {
+    const tr = document.createElement('tr');
+    const values = [
+      { text: String(index + 1).padStart(2, '0'), cls: 'stats-rank' },
+      { text: estudio.nombre || 'Estudio sin nombre' },
+      { text: estudio.categoria || 'OTROS' },
+      { text: Number(estudio.cantidad || 0).toLocaleString('es-MX') },
+      { text: statsMoney(estudio.ingresos), cls: 'stats-money' },
+      { text: statsMoney(estudio.precio_promedio), cls: 'stats-money' },
+      { text: Number(estudio.ordenes || 0).toLocaleString('es-MX') },
+    ];
+    values.forEach((item) => {
+      const td = document.createElement('td');
+      td.textContent = item.text;
+      if (item.cls) td.className = item.cls;
+      tr.appendChild(td);
+    });
+    fragment.appendChild(tr);
+  });
+  tbody.appendChild(fragment);
+}
+
+async function statsCargar() {
+  const btn = statsEl('stats-btn-aplicar');
+  btn.disabled = true;
+  btn.textContent = 'Cargando...';
+  const params = statsBuildParams();
+  try {
+    const [resumenRes, estudiosRes, ventasRes, categoriasRes] = await Promise.all([
+      api(`/api/estadisticas/resumen?${params}`),
+      api(`/api/estadisticas/estudios?${params}`),
+      api(`/api/estadisticas/ventas-dia?${params}`),
+      api(`/api/estadisticas/categorias?${params}`),
+    ]);
+    if (!resumenRes.ok || !estudiosRes.ok || !ventasRes.ok || !categoriasRes.ok) throw new Error('No se pudieron cargar las estadisticas');
+
+    const resumenData = await resumenRes.json();
+    const estudiosData = await estudiosRes.json();
+    const ventasData = await ventasRes.json();
+    const categoriasData = await categoriasRes.json();
+
+    statsUltimoRange = resumenData.range;
+    statsUltimosEstudios = estudiosData.estudios || [];
+    statsRenderResumen(resumenData.resumen || {});
+    statsRenderEstudios(statsUltimosEstudios);
+    statsRenderVentasChart(ventasData.ventasDia || []);
+    statsRenderCategoriasChart(categoriasData.categorias || []);
+    statsEl('stats-range-label').textContent = `${resumenData.range.desde} a ${resumenData.range.hasta}`;
+  } catch (err) {
+    if (err.isAuth) return;
+    console.error(err);
+    toast(err.message || 'Error al cargar estadisticas', '❌');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Aplicar';
+  }
+}
+
+function statsExportCsv() {
+  if (!statsUltimosEstudios.length) {
+    toast('No hay datos para exportar', '⚠️');
+    return;
+  }
+  const headers = ['Estudio', 'Categoria', 'Cantidad', 'Ingresos', 'Precio promedio', 'Ordenes'];
+  const rows = statsUltimosEstudios.map((row) => [
+    row.nombre || '',
+    row.categoria || 'OTROS',
+    row.cantidad || 0,
+    Number(row.ingresos || 0).toFixed(2),
+    Number(row.precio_promedio || 0).toFixed(2),
+    row.ordenes || 0,
+  ]);
+  const csv = [headers, ...rows]
+    .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const suffix = statsUltimoRange ? `${statsUltimoRange.desde}_${statsUltimoRange.hasta}` : 'periodo';
+  a.href = url;
+  a.download = `estadisticas-estudios-${suffix}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+
+function statsIniciarVista() {
+  if (!statsInicializado) {
+    statsInicializado = true;
+    statsSetDefaultDates();
+    statsEl('stats-btn-aplicar')?.addEventListener('click', statsCargar);
+    statsEl('stats-btn-export')?.addEventListener('click', statsExportCsv);
+    statsEl('stats-periodo')?.addEventListener('change', () => {
+      const isRange = statsEl('stats-periodo').value === 'rango';
+      statsEl('stats-desde').disabled = !isRange;
+      statsEl('stats-hasta').disabled = !isRange;
+    });
+    statsEl('stats-desde').disabled = true;
+    statsEl('stats-hasta').disabled = true;
+    statsCargarSucursales();
+  }
+  statsCargar();
 }
 
 /* ── PROFORMA ── */
