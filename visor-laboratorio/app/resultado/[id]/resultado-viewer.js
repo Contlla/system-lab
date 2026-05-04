@@ -63,7 +63,7 @@ export default function ResultadoViewer({ id }) {
               src="/vica-logo.svg"
               alt="VICA Laboratorio"
               width={220}
-              height={82}
+              height={67}
               className="h-14 w-auto shrink-0"
               priority
             />

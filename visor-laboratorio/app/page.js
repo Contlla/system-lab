@@ -9,7 +9,7 @@ export default function Home() {
           src="/vica-logo.svg"
           alt="VICA Laboratorio"
           width={260}
-          height={97}
+          height={79}
           className="h-24 w-fit"
           priority
         />
