@@ -177,6 +177,24 @@ const ESTADOS_PAGO = Object.freeze({
   PAGADO: 'pagado',
 });
 
+const SUCURSALES_VALIDAS = ['CDC', 'NTE', 'SUR'];
+const HORARIO_INICIO = '07:00';
+const HORARIO_FIN = '20:00';
+const ESTADOS_CITA = ['programada', 'confirmada', 'en_curso', 'completada', 'cancelada', 'no_asistio'];
+
+function hhmm(value) {
+  const match = String(value || '').match(/^(\d{2}):(\d{2})$/);
+  if (!match) return NaN;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return NaN;
+  return hours * 60 + minutes;
+}
+
+function solapan(inicioA, finA, inicioB, finB) {
+  return hhmm(inicioA) < hhmm(finB) && hhmm(finA) > hhmm(inicioB);
+}
+
 const CATEGORIAS_ESTUDIO_VALIDAS = [
   'BIOQU\u00cdMICA',
   'BIOLOG\u00cdA MOLECULAR',
@@ -516,6 +534,316 @@ const upload = multer({
    LOGIN
 ========================= */
 
+function parseAgendaStudyIds(value) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set();
+  const ids = [];
+  for (const raw of value) {
+    const id = Number(raw);
+    if (!Number.isInteger(id) || id <= 0 || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  return ids;
+}
+
+async function loadAgendaStudies(ids, executor = { all }) {
+  if (!ids.length) return [];
+  const placeholders = ids.map(() => '?').join(',');
+  const rows = await executor.all(
+    `SELECT id, nombre, precio, categoria
+     FROM estudios
+     WHERE id IN (${placeholders})`,
+    ids
+  );
+  const byId = new Map(rows.map((row) => [Number(row.id), row]));
+  const missing = ids.filter((id) => !byId.has(id));
+  if (missing.length) {
+    const error = new Error(`Estudio no encontrado: ${missing[0]}`);
+    error.status = 400;
+    throw error;
+  }
+  return ids.map((id) => byId.get(id));
+}
+
+function serializeAgendaStudyIds(studies = []) {
+  return JSON.stringify(studies.map((study) => Number(study.id)));
+}
+
+function serializeAgendaStudyNames(studies = []) {
+  return studies.map((study) => study.nombre).join(', ');
+}
+
+async function syncCitaEstudios(citaId, studies, executor = { run }) {
+  await executor.run(`DELETE FROM cita_estudios WHERE cita_id = ?`, [citaId]);
+  for (const study of studies) {
+    await executor.run(
+      `INSERT INTO cita_estudios (cita_id, estudio_id, nombre, precio, categoria)
+       VALUES (?, ?, ?, ?, ?)`,
+      [citaId, study.id, study.nombre, Number(study.precio || 0), study.categoria || null]
+    );
+  }
+}
+
+async function hydrateCitasWithStudies(citas = [], executor = { all }) {
+  if (!citas.length) return citas;
+  const ids = citas.map((cita) => Number(cita.id)).filter(Boolean);
+  const placeholders = ids.map(() => '?').join(',');
+  const rows = await executor.all(
+    `SELECT cita_id, estudio_id AS id, nombre, precio, categoria
+     FROM cita_estudios
+     WHERE cita_id IN (${placeholders})
+     ORDER BY id ASC`,
+    ids
+  );
+  const byCita = new Map();
+  rows.forEach((row) => {
+    const list = byCita.get(Number(row.cita_id)) || [];
+    list.push({
+      id: Number(row.id),
+      nombre: row.nombre,
+      precio: Number(row.precio || 0),
+      categoria: row.categoria || null,
+    });
+    byCita.set(Number(row.cita_id), list);
+  });
+  return citas.map((cita) => {
+    const estudios = byCita.get(Number(cita.id)) || [];
+    if (!estudios.length) return cita;
+    return {
+      ...cita,
+      estudios,
+      estudios_ids: serializeAgendaStudyIds(estudios),
+      estudios_nombres: serializeAgendaStudyNames(estudios),
+    };
+  });
+}
+
+function validateAgendaCitaPayload(body = {}, existing = null) {
+  const sucursal = body.sucursal || existing?.sucursal;
+  const tecnicoId = body.tecnico_id ? Number(body.tecnico_id) : null;
+  const pacienteId = body.paciente_id ? Number(body.paciente_id) : null;
+  const pacienteNombre = String(body.paciente_nombre || '').trim();
+  const pacienteCelular = String(body.paciente_celular || '').trim() || null;
+  const fecha = String(body.fecha || '').trim();
+  const horaInicio = String(body.hora_inicio || '').trim();
+  const horaFin = String(body.hora_fin || '').trim();
+  const duracionMin = Number(body.duracion_min) || (hhmm(horaFin) - hhmm(horaInicio));
+  const notas = String(body.notas || '').trim() || null;
+  const estudiosIds = parseAgendaStudyIds(body.estudios_ids);
+
+  if (!sucursal || !SUCURSALES_VALIDAS.includes(sucursal)) {
+    return { error: 'Sucursal invalida' };
+  }
+  if (!pacienteNombre) return { error: 'Nombre del paciente requerido' };
+  if (!fecha || !horaInicio || !horaFin) return { error: 'Fecha y horario requeridos' };
+  if (hhmm(horaInicio) >= hhmm(horaFin)) return { error: 'Horario invalido: inicio debe ser antes del fin' };
+  if (hhmm(horaInicio) < hhmm(HORARIO_INICIO) || hhmm(horaFin) > hhmm(HORARIO_FIN)) {
+    return { error: `Horario fuera del rango permitido (${HORARIO_INICIO}-${HORARIO_FIN})` };
+  }
+  if (!Number.isInteger(duracionMin) || duracionMin < 15 || duracionMin > 480) {
+    return { error: 'Duracion invalida' };
+  }
+
+  return {
+    sucursal,
+    tecnicoId: Number.isInteger(tecnicoId) && tecnicoId > 0 ? tecnicoId : null,
+    pacienteId: Number.isInteger(pacienteId) && pacienteId > 0 ? pacienteId : null,
+    pacienteNombre,
+    pacienteCelular,
+    fecha,
+    horaInicio,
+    horaFin,
+    duracionMin,
+    notas,
+    estudiosIds,
+  };
+}
+
+async function assertAgendaSlotDisponible({ fecha, sucursal, tecnicoId, horaInicio, horaFin, excludeCitaId = null }, executor = { all }) {
+  let dupSql = `SELECT id, paciente_nombre, hora_inicio, hora_fin FROM citas
+                WHERE fecha = ? AND sucursal = ? AND estado NOT IN ('cancelada','no_asistio')`;
+  const dupParams = [fecha, sucursal];
+  if (excludeCitaId) {
+    dupSql += ` AND id != ?`;
+    dupParams.push(Number(excludeCitaId));
+  }
+  if (tecnicoId) {
+    dupSql += ` AND tecnico_id = ?`;
+    dupParams.push(tecnicoId);
+  }
+  const existentes = await executor.all(dupSql, dupParams);
+  const conflicto = existentes.find((cita) => solapan(horaInicio, horaFin, cita.hora_inicio, cita.hora_fin));
+  if (conflicto) {
+    const error = new Error(`Horario ocupado: "${conflicto.paciente_nombre}" ya tiene cita de ${conflicto.hora_inicio} a ${conflicto.hora_fin}`);
+    error.status = 409;
+    throw error;
+  }
+
+  let blqSql = `SELECT motivo, hora_inicio, hora_fin FROM agenda_bloqueos
+                WHERE fecha = ? AND sucursal = ?`;
+  const blqParams = [fecha, sucursal];
+  if (tecnicoId) {
+    blqSql += ` AND (tecnico_id IS NULL OR tecnico_id = ?)`;
+    blqParams.push(tecnicoId);
+  }
+  const bloqueos = await executor.all(blqSql, blqParams);
+  const bloqueo = bloqueos.find((item) => solapan(horaInicio, horaFin, item.hora_inicio, item.hora_fin));
+  if (bloqueo) {
+    const error = new Error(`Horario bloqueado: "${bloqueo.motivo || 'sin motivo'}" (${bloqueo.hora_inicio}-${bloqueo.hora_fin})`);
+    error.status = 409;
+    throw error;
+  }
+}
+
+async function calcularDisponibilidadAgenda({ fecha, sucursal, tecnicoId, duracion, excludeCitaId = null }, executor = { all }) {
+  const dur = Math.max(15, Math.min(480, Number(duracion || 30)));
+  let citasSql = `SELECT hora_inicio, hora_fin FROM citas
+                  WHERE fecha = ? AND sucursal = ? AND estado NOT IN ('cancelada','no_asistio')`;
+  const citasParams = [fecha, sucursal];
+  if (excludeCitaId) {
+    citasSql += ` AND id != ?`;
+    citasParams.push(Number(excludeCitaId));
+  }
+  if (tecnicoId) {
+    citasSql += ` AND tecnico_id = ?`;
+    citasParams.push(tecnicoId);
+  }
+  const citasOcupadas = await executor.all(citasSql, citasParams);
+
+  let blqSql = `SELECT hora_inicio, hora_fin FROM agenda_bloqueos WHERE fecha = ? AND sucursal = ?`;
+  const blqParams = [fecha, sucursal];
+  if (tecnicoId) {
+    blqSql += ` AND (tecnico_id IS NULL OR tecnico_id = ?)`;
+    blqParams.push(tecnicoId);
+  }
+  const bloqueos = await executor.all(blqSql, blqParams);
+  const ocupados = [...citasOcupadas, ...bloqueos];
+
+  const slots = [];
+  let cur = hhmm(HORARIO_INICIO);
+  const limite = hhmm(HORARIO_FIN) - dur;
+  while (cur <= limite) {
+    const hIni = String(Math.floor(cur / 60)).padStart(2, '0') + ':' + String(cur % 60).padStart(2, '0');
+    const finMin = cur + dur;
+    const hFin = String(Math.floor(finMin / 60)).padStart(2, '0') + ':' + String(finMin % 60).padStart(2, '0');
+    slots.push({
+      hora_inicio: hIni,
+      hora_fin: hFin,
+      libre: !ocupados.some((item) => solapan(hIni, hFin, item.hora_inicio, item.hora_fin)),
+    });
+    cur += 15;
+  }
+  return slots;
+}
+
+async function listarCitasAgenda(filters, executor = { all }) {
+  const { fecha, fecha_fin, sucursal, tecnico_id, estado } = filters;
+  let sql = `
+    SELECT c.*, t.nombre AS tecnico_nombre
+    FROM citas c
+    LEFT JOIN tecnicos t ON t.id = c.tecnico_id
+    WHERE c.fecha >= ?`;
+  const params = [fecha];
+  if (fecha_fin) { sql += ` AND c.fecha <= ?`; params.push(fecha_fin); }
+  else { sql += ` AND c.fecha = ?`; params.push(fecha); }
+  if (sucursal) { sql += ` AND c.sucursal = ?`; params.push(sucursal); }
+  if (tecnico_id) { sql += ` AND c.tecnico_id = ?`; params.push(tecnico_id); }
+  if (estado) { sql += ` AND c.estado = ?`; params.push(estado); }
+  sql += ` ORDER BY c.hora_inicio ASC`;
+  return hydrateCitasWithStudies(await executor.all(sql, params), executor);
+}
+
+async function crearCitaAgenda(body, usuario) {
+  const payload = validateAgendaCitaPayload(body);
+  if (payload.error) {
+    const error = new Error(payload.error);
+    error.status = 400;
+    throw error;
+  }
+
+  return withTransaction(async (tx) => {
+    await assertAgendaSlotDisponible(payload, tx);
+    const studies = await loadAgendaStudies(payload.estudiosIds, tx);
+    const eIds = serializeAgendaStudyIds(studies);
+    const eNom = serializeAgendaStudyNames(studies);
+    const created = await tx.run(`
+      INSERT INTO citas
+        (sucursal, tecnico_id, paciente_id, paciente_nombre, paciente_celular,
+         fecha, hora_inicio, hora_fin, duracion_min, estudios_ids, estudios_nombres,
+         estado, notas, creado_por)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'programada', ?, ?)
+    `, [
+      payload.sucursal,
+      payload.tecnicoId,
+      payload.pacienteId,
+      payload.pacienteNombre,
+      payload.pacienteCelular,
+      payload.fecha,
+      payload.horaInicio,
+      payload.horaFin,
+      payload.duracionMin,
+      eIds,
+      eNom,
+      payload.notas,
+      usuario,
+    ]);
+    await syncCitaEstudios(created.lastID, studies, tx);
+    const citas = await listarCitasAgenda({ fecha: payload.fecha, fecha_fin: payload.fecha, sucursal: payload.sucursal }, tx);
+    return citas.find((cita) => Number(cita.id) === Number(created.lastID));
+  });
+}
+
+async function actualizarCitaAgenda(id, body) {
+  const citaExistente = await get(`SELECT * FROM citas WHERE id = ?`, [id]);
+  if (!citaExistente) {
+    const error = new Error('Cita no encontrada');
+    error.status = 404;
+    throw error;
+  }
+  if (citaExistente.orden_id) {
+    const error = new Error('No se puede editar una cita que ya tiene orden vinculada');
+    error.status = 409;
+    throw error;
+  }
+  const payload = validateAgendaCitaPayload(body, citaExistente);
+  if (payload.error) {
+    const error = new Error(payload.error);
+    error.status = 400;
+    throw error;
+  }
+
+  return withTransaction(async (tx) => {
+    await assertAgendaSlotDisponible({ ...payload, excludeCitaId: id }, tx);
+    const studies = await loadAgendaStudies(payload.estudiosIds, tx);
+    const eIds = serializeAgendaStudyIds(studies);
+    const eNom = serializeAgendaStudyNames(studies);
+    await tx.run(`
+      UPDATE citas SET
+        sucursal=?, tecnico_id=?, paciente_id=?, paciente_nombre=?,
+        paciente_celular=?, fecha=?, hora_inicio=?, hora_fin=?,
+        duracion_min=?, estudios_ids=?, estudios_nombres=?, notas=?
+      WHERE id=?
+    `, [
+      payload.sucursal,
+      payload.tecnicoId,
+      payload.pacienteId,
+      payload.pacienteNombre,
+      payload.pacienteCelular,
+      payload.fecha,
+      payload.horaInicio,
+      payload.horaFin,
+      payload.duracionMin,
+      eIds,
+      eNom,
+      payload.notas,
+      id,
+    ]);
+    await syncCitaEstudios(id, studies, tx);
+    const citas = await listarCitasAgenda({ fecha: payload.fecha, fecha_fin: payload.fecha, sucursal: payload.sucursal }, tx);
+    return citas.find((cita) => Number(cita.id) === Number(id));
+  });
+}
 
 const get_agenda_tecnicos = async (req, res) => {
   try {
@@ -553,40 +881,16 @@ const delete_agenda_tecnicos_by_id = async (req, res) => {
 
 const get_agenda_disponibilidad = async (req, res) => {
   try {
-    const { fecha, sucursal, tecnico_id, duracion = 30 } = req.query;
+    const { fecha, sucursal, tecnico_id, duracion = 30, exclude_cita_id } = req.query;
     if (!fecha || !sucursal) return res.status(400).json({ error: 'fecha y sucursal requeridos' });
 
-    const dur = Math.max(15, Math.min(480, Number(duracion)));
-
-    // Citas del dÃ­a para ese tÃ©cnico/sucursal
-    let citasSql = `SELECT hora_inicio, hora_fin FROM citas WHERE fecha = ? AND sucursal = ? AND estado NOT IN ('cancelada','no_asistio')`;
-    const citasParams = [fecha, sucursal];
-    if (tecnico_id) { citasSql += ` AND tecnico_id = ?`; citasParams.push(tecnico_id); }
-    const citasOcupadas = await all(citasSql, citasParams);
-
-    // Bloqueos del dÃ­a
-    let blqSql = `SELECT hora_inicio, hora_fin FROM agenda_bloqueos WHERE fecha = ? AND sucursal = ?`;
-    const blqParams = [fecha, sucursal];
-    if (tecnico_id) { blqSql += ` AND (tecnico_id IS NULL OR tecnico_id = ?)`; blqParams.push(tecnico_id); }
-    const bloqueos = await all(blqSql, blqParams);
-
-    const ocupados = [...citasOcupadas, ...bloqueos];
-
-    // Generar slots de 15 min entre 07:00 y 20:00
-    const slots = [];
-    let cur = hhmm(HORARIO_INICIO);
-    const limite = hhmm(HORARIO_FIN) - dur;
-
-    while (cur <= limite) {
-      const hIni = String(Math.floor(cur / 60)).padStart(2, '0') + ':' + String(cur % 60).padStart(2, '0');
-      const finMin = cur + dur;
-      const hFin = String(Math.floor(finMin / 60)).padStart(2, '0') + ':' + String(finMin % 60).padStart(2, '0');
-      const libre = !ocupados.some(o => solapan(hIni, hFin, o.hora_inicio, o.hora_fin));
-      slots.push({ hora_inicio: hIni, hora_fin: hFin, libre });
-      cur += 15;
-    }
-
-    res.json(slots);
+    res.json(await calcularDisponibilidadAgenda({
+      fecha,
+      sucursal,
+      tecnicoId: tecnico_id ? Number(tecnico_id) : null,
+      duracion,
+      excludeCitaId: exclude_cita_id ? Number(exclude_cita_id) : null,
+    }));
   } catch (err) {
     console.error(err); res.status(500).json({ error: err.message });
   }
@@ -596,23 +900,7 @@ const get_agenda_citas = async (req, res) => {
   try {
     const { fecha, fecha_fin, sucursal, tecnico_id, estado } = req.query;
     if (!fecha) return res.status(400).json({ error: 'fecha requerida' });
-
-    let sql = `
-      SELECT c.*, t.nombre AS tecnico_nombre
-      FROM citas c
-      LEFT JOIN tecnicos t ON t.id = c.tecnico_id
-      WHERE c.fecha >= ?`;
-    const params = [fecha];
-
-    if (fecha_fin) { sql += ` AND c.fecha <= ?`;        params.push(fecha_fin); }
-    else           { sql += ` AND c.fecha = ?`;         params.push(fecha);     }
-    if (sucursal)  { sql += ` AND c.sucursal = ?`;      params.push(sucursal);  }
-    if (tecnico_id){ sql += ` AND c.tecnico_id = ?`;    params.push(tecnico_id);}
-    if (estado)    { sql += ` AND c.estado = ?`;        params.push(estado);    }
-
-    sql += ` ORDER BY c.hora_inicio ASC`;
-    const citas = await all(sql, params);
-    res.json(citas);
+    res.json(await listarCitasAgenda({ fecha, fecha_fin, sucursal, tecnico_id, estado }));
   } catch (err) {
     console.error(err); res.status(500).json({ error: err.message });
   }
@@ -620,70 +908,9 @@ const get_agenda_citas = async (req, res) => {
 
 const post_agenda_citas = async (req, res) => {
   try {
-    const {
-      sucursal, tecnico_id, paciente_id,
-      paciente_nombre, paciente_celular,
-      fecha, hora_inicio, hora_fin, duracion_min,
-      estudios_ids, estudios_nombres, notas
-    } = req.body;
-
-    // Validaciones bÃ¡sicas
-    if (!sucursal || !SUCURSALES_VALIDAS.includes(sucursal))
-      return res.status(400).json({ error: 'Sucursal invÃ¡lida' });
-    if (!paciente_nombre?.trim())
-      return res.status(400).json({ error: 'Nombre del paciente requerido' });
-    if (!fecha || !hora_inicio || !hora_fin)
-      return res.status(400).json({ error: 'Fecha y horario requeridos' });
-    if (hhmm(hora_inicio) >= hhmm(hora_fin))
-      return res.status(400).json({ error: 'Horario invÃ¡lido: inicio debe ser antes del fin' });
-    if (hhmm(hora_inicio) < hhmm(HORARIO_INICIO) || hhmm(hora_fin) > hhmm(HORARIO_FIN))
-      return res.status(400).json({ error: `Horario fuera del rango permitido (${HORARIO_INICIO}â€“${HORARIO_FIN})` });
-
-    // Validar solapamiento con otras citas del mismo tÃ©cnico/sucursal
-    let dupSql = `SELECT id, paciente_nombre, hora_inicio, hora_fin FROM citas
-                  WHERE fecha = ? AND sucursal = ? AND estado NOT IN ('cancelada','no_asistio')`;
-    const dupParams = [fecha, sucursal];
-    if (tecnico_id) { dupSql += ` AND tecnico_id = ?`; dupParams.push(tecnico_id); }
-    const existentes = await all(dupSql, dupParams);
-
-    const conflicto = existentes.find(c => solapan(hora_inicio, hora_fin, c.hora_inicio, c.hora_fin));
-    if (conflicto)
-      return res.status(409).json({
-        error: `Horario ocupado: "${conflicto.paciente_nombre}" ya tiene cita de ${conflicto.hora_inicio} a ${conflicto.hora_fin}`
-      });
-
-    // Validar solapamiento con bloqueos
-    let blqSql = `SELECT motivo, hora_inicio, hora_fin FROM agenda_bloqueos
-                  WHERE fecha = ? AND sucursal = ?`;
-    const blqParams = [fecha, sucursal];
-    if (tecnico_id) { blqSql += ` AND (tecnico_id IS NULL OR tecnico_id = ?)`; blqParams.push(tecnico_id); }
-    const bloqueos = await all(blqSql, blqParams);
-    const bloqueo = bloqueos.find(b => solapan(hora_inicio, hora_fin, b.hora_inicio, b.hora_fin));
-    if (bloqueo)
-      return res.status(409).json({
-        error: `Horario bloqueado: "${bloqueo.motivo || 'sin motivo'}" (${bloqueo.hora_inicio}â€“${bloqueo.hora_fin})`
-      });
-
-    const dur = duracion_min || (hhmm(hora_fin) - hhmm(hora_inicio));
-    const eIds = JSON.stringify(Array.isArray(estudios_ids) ? estudios_ids : []);
-    const eNom  = Array.isArray(estudios_nombres) ? estudios_nombres.join(', ') : (estudios_nombres || '');
-
-    const r = await run(`
-      INSERT INTO citas
-        (sucursal, tecnico_id, paciente_id, paciente_nombre, paciente_celular,
-         fecha, hora_inicio, hora_fin, duracion_min, estudios_ids, estudios_nombres,
-         estado, notas, creado_por)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'programada', ?, ?)
-    `, [
-      sucursal, tecnico_id || null, paciente_id || null,
-      paciente_nombre.trim(), paciente_celular || null,
-      fecha, hora_inicio, hora_fin, dur, eIds, eNom,
-      notas || null, req.user.usuario
-    ]);
-
-    const cita = await get(`SELECT * FROM citas WHERE id = ?`, [r.lastID]);
-    res.status(201).json(cita);
+    res.status(201).json(await crearCitaAgenda(req.body, req.user.usuario));
   } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
     console.error(err); res.status(500).json({ error: err.message });
   }
 };
@@ -704,52 +931,9 @@ const patch_agenda_citas_by_id_estado = async (req, res) => {
 const put_agenda_citas_by_id = async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const citaExistente = await get(`SELECT * FROM citas WHERE id = ?`, [id]);
-    if (!citaExistente) return res.status(404).json({ error: 'Cita no encontrada' });
-
-    const {
-      sucursal, tecnico_id, paciente_id,
-      paciente_nombre, paciente_celular,
-      fecha, hora_inicio, hora_fin, duracion_min,
-      estudios_ids, estudios_nombres, notas
-    } = req.body;
-
-    if (!paciente_nombre?.trim()) return res.status(400).json({ error: 'Nombre del paciente requerido' });
-    if (!fecha || !hora_inicio || !hora_fin) return res.status(400).json({ error: 'Fecha y horario requeridos' });
-    if (hhmm(hora_inicio) >= hhmm(hora_fin)) return res.status(400).json({ error: 'Horario invÃ¡lido' });
-
-    // Solapamiento excluyendo la propia cita
-    let dupSql = `SELECT id, paciente_nombre, hora_inicio, hora_fin FROM citas
-                  WHERE fecha = ? AND sucursal = ? AND id != ? AND estado NOT IN ('cancelada','no_asistio')`;
-    const dupParams = [fecha, sucursal || citaExistente.sucursal, id];
-    if (tecnico_id) { dupSql += ` AND tecnico_id = ?`; dupParams.push(tecnico_id); }
-    const existentes = await all(dupSql, dupParams);
-    const conflicto = existentes.find(c => solapan(hora_inicio, hora_fin, c.hora_inicio, c.hora_fin));
-    if (conflicto)
-      return res.status(409).json({
-        error: `Horario ocupado: "${conflicto.paciente_nombre}" (${conflicto.hora_inicio}â€“${conflicto.hora_fin})`
-      });
-
-    const dur = duracion_min || (hhmm(hora_fin) - hhmm(hora_inicio));
-    const eIds = JSON.stringify(Array.isArray(estudios_ids) ? estudios_ids : []);
-    const eNom  = Array.isArray(estudios_nombres) ? estudios_nombres.join(', ') : (estudios_nombres || '');
-
-    await run(`
-      UPDATE citas SET
-        sucursal=?, tecnico_id=?, paciente_id=?, paciente_nombre=?,
-        paciente_celular=?, fecha=?, hora_inicio=?, hora_fin=?,
-        duracion_min=?, estudios_ids=?, estudios_nombres=?, notas=?
-      WHERE id=?
-    `, [
-      sucursal || citaExistente.sucursal,
-      tecnico_id || null, paciente_id || null,
-      paciente_nombre.trim(), paciente_celular || null,
-      fecha, hora_inicio, hora_fin, dur, eIds, eNom, notas || null, id
-    ]);
-
-    const cita = await get(`SELECT * FROM citas WHERE id = ?`, [id]);
-    res.json(cita);
+    res.json(await actualizarCitaAgenda(id, req.body));
   } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
     console.error(err); res.status(500).json({ error: err.message });
   }
 };
@@ -772,7 +956,8 @@ const post_agenda_citas_by_id_orden = async (req, res) => {
     if (cita.orden_id) return res.status(409).json({ error: 'Esta cita ya tiene una orden vinculada', orden_folio: cita.orden_folio });
 
     const { sucursal, medico } = req.body;
-    const resultado = await crearOrdenDesdeCitaSegura(cita, { sucursal, medico });
+    const [citaHydratada] = await hydrateCitasWithStudies([cita]);
+    const resultado = await crearOrdenDesdeCitaSegura(citaHydratada, { sucursal, medico });
     return res.status(201).json(resultado);
   } catch (err) {
     console.error(err); res.status(500).json({ error: err.message });

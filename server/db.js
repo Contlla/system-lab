@@ -1314,6 +1314,34 @@ db.serialize(async () => {
   clearColumnIfExists('citas', 'paciente_dni', 'citas_clear_paciente_dni');
   dropColumnIfExists('citas', 'paciente_dni', 'citas_drop_paciente_dni');
 
+  db.serialize(() => {
+    ddl(`
+      CREATE TABLE IF NOT EXISTS cita_estudios (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        cita_id    INTEGER NOT NULL,
+        estudio_id INTEGER NOT NULL,
+        nombre     TEXT    NOT NULL,
+        precio     REAL    NOT NULL DEFAULT 0,
+        categoria  TEXT,
+        created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (cita_id)    REFERENCES citas(id)    ON DELETE CASCADE ON UPDATE CASCADE,
+        FOREIGN KEY (estudio_id) REFERENCES estudios(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+        UNIQUE(cita_id, estudio_id)
+      )
+    `, 'cita_estudios');
+
+    ddl(`CREATE INDEX IF NOT EXISTS idx_cita_estudios_cita ON cita_estudios(cita_id)`, 'idx_cita_estudios_cita');
+    ddl(`CREATE INDEX IF NOT EXISTS idx_cita_estudios_estudio ON cita_estudios(estudio_id)`, 'idx_cita_estudios_estudio');
+
+    ddl(`
+      INSERT OR IGNORE INTO cita_estudios (cita_id, estudio_id, nombre, precio, categoria)
+      SELECT c.id, e.id, e.nombre, e.precio, e.categoria
+      FROM citas c
+      JOIN json_each(COALESCE(NULLIF(c.estudios_ids, ''), '[]')) je
+      JOIN estudios e ON e.id = CAST(je.value AS INTEGER)
+    `, 'cita_estudios_backfill');
+  });
+
   /* =========================
      SEED: USUARIOS
   ========================= */

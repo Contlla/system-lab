@@ -600,6 +600,8 @@ let agBloqueos = [];
 let agTecnicos = [];
 let agEstudios = [];   // catálogo completo
 let agMcSel = [];   // estudios seleccionados en modal cita
+let agMcQuery = '';
+let agMcCat = '';
 let agEditId = null; // null=crear, number=editar
 let agDetalleCita = null;
 
@@ -732,15 +734,19 @@ function agRenderTimeline() {
         if (agCitas.some(x => x.id === c.id && x.hora_inicio < horaStr)) return; // ya renderizado
         const div = document.createElement('div');
         div.className = `ag-cita ag-cita-${c.estado}`;
+        const estado = escapeHTML(String(c.estado || '').replace('_', ' '));
+        const ordenFolio = c.orden_folio ? escapeHTML(c.orden_folio) : '';
+        const estudios = c.estudios_nombres ? escapeHTML(c.estudios_nombres) : '';
+        const tecnico = c.tecnico_nombre ? escapeHTML(c.tecnico_nombre) : '';
         div.innerHTML = `
           <div class="ag-cita-top">
-            <span class="ag-cita-hora">${c.hora_inicio}–${c.hora_fin}</span>
-            <span class="ag-pill ag-pill-${c.estado}">${c.estado.replace('_', ' ')}</span>
-            ${c.orden_folio ? `<span style="font-size:10px;font-family:'DM Mono',monospace;color:var(--green-dark);">📋 ${c.orden_folio}</span>` : ''}
+            <span class="ag-cita-hora">${escapeHTML(c.hora_inicio)}–${escapeHTML(c.hora_fin)}</span>
+            <span class="ag-pill ag-pill-${escapeHTML(c.estado)}">${estado}</span>
+            ${ordenFolio ? `<span style="font-size:10px;font-family:'DM Mono',monospace;color:var(--green-dark);">📋 ${ordenFolio}</span>` : ''}
           </div>
-          <div class="ag-cita-pac">${c.paciente_nombre}</div>
-          ${c.estudios_nombres ? `<div class="ag-cita-est">🧪 ${c.estudios_nombres}</div>` : ''}
-          ${c.tecnico_nombre ? `<div class="ag-cita-est">👤 ${c.tecnico_nombre}</div>` : ''}
+          <div class="ag-cita-pac">${escapeHTML(c.paciente_nombre || '')}</div>
+          ${estudios ? `<div class="ag-cita-est">🧪 ${estudios}</div>` : ''}
+          ${tecnico ? `<div class="ag-cita-est">👤 ${tecnico}</div>` : ''}
         `;
         div.addEventListener('click', () => abrirDetalleCita(c));
         line.appendChild(div);
@@ -755,6 +761,15 @@ function agRenderTimeline() {
 function solapanFront(i1, f1, i2, f2) {
   const t = (s) => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
   return t(i1) < t(f2) && t(f1) > t(i2);
+}
+
+function agCanon(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /* ── Stats ── */
@@ -816,8 +831,12 @@ function agRenderList() {
 function abrirModalCita(citaParaEditar = null) {
   agEditId = citaParaEditar?.id || null;
   agMcSel = [];
+  agMcQuery = '';
+  agMcCat = '';
   document.getElementById('mc-err').style.display = 'none';
   document.getElementById('mc-title').textContent = agEditId ? '✏️ Editar cita' : '📅 Nueva cita';
+  const searchInput = document.getElementById('mc-search-estudios');
+  if (searchInput) searchInput.value = '';
   const hoy = new Date().toISOString().split('T')[0];
   const suc = document.getElementById('ag-suc-sel').value;
   if (citaParaEditar) {
@@ -830,7 +849,9 @@ function abrirModalCita(citaParaEditar = null) {
     document.getElementById('mc-hora-fin').value = citaParaEditar.hora_fin || '';
     document.getElementById('mc-notas').value = citaParaEditar.notas || '';
     try {
-      const ids = JSON.parse(citaParaEditar.estudios_ids || '[]');
+      const ids = Array.isArray(citaParaEditar.estudios)
+        ? citaParaEditar.estudios.map(e => Number(e.id))
+        : JSON.parse(citaParaEditar.estudios_ids || '[]').map(Number);
       agMcSel = agEstudios.filter(e => ids.includes(e.id));
     } catch { agMcSel = []; }
   } else {
@@ -853,6 +874,8 @@ function abrirModalCita(citaParaEditar = null) {
 function cerrarModalCita() {
   document.getElementById('modal-cita').classList.remove('open');
   agEditId = null;
+  agMcQuery = '';
+  agMcCat = '';
 }
 
 async function mcCargarTecnicos(selId = null) {
@@ -866,10 +889,97 @@ async function mcCargarTecnicos(selId = null) {
 
 function mcRenderEstudios() {
   const cont = document.getElementById('mc-estudios-lista');
-  cont.innerHTML = agEstudios.map(e => {
-    const sel = agMcSel.some(x => x.id === e.id);
-    return `<button type="button" class="mc-slot-btn${sel ? ' selected' : ''}" onclick="mcToggleEstudio(${e.id})" title="${e.categoria}">${escapeHTML(e.nombre)}<br><span style="font-size:9px;opacity:0.7;">$${fmt(e.precio)}</span></button>`;
-  }).join('');
+  const catWrap = document.getElementById('mc-cat-filters');
+  const selectedWrap = document.getElementById('mc-estudios-selected');
+  const countEl = document.getElementById('mc-estudios-count');
+  const selectedCountEl = document.getElementById('mc-estudios-sel-count');
+  if (!cont || !catWrap || !selectedWrap) return;
+
+  const categories = [...new Set(agEstudios.map(e => e.categoria || 'OTROS'))].sort((a, b) => a.localeCompare(b));
+  catWrap.innerHTML = '';
+  const allBtn = document.createElement('button');
+  allBtn.type = 'button';
+  allBtn.className = `mc-cat-btn${!agMcCat ? ' active' : ''}`;
+  allBtn.textContent = 'Todas';
+  allBtn.addEventListener('click', () => { agMcCat = ''; mcRenderEstudios(); });
+  catWrap.appendChild(allBtn);
+  categories.forEach((cat) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `mc-cat-btn${agMcCat === cat ? ' active' : ''}`;
+    btn.textContent = cat;
+    btn.addEventListener('click', () => { agMcCat = agMcCat === cat ? '' : cat; mcRenderEstudios(); });
+    catWrap.appendChild(btn);
+  });
+
+  selectedWrap.innerHTML = '';
+  if (agMcSel.length) {
+    agMcSel.forEach((study) => {
+      const chip = document.createElement('span');
+      chip.className = 'mc-study-chip';
+      const label = document.createElement('span');
+      label.textContent = study.nombre;
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.textContent = 'x';
+      remove.setAttribute('aria-label', `Quitar ${study.nombre}`);
+      remove.addEventListener('click', () => mcToggleEstudio(study.id));
+      chip.append(label, remove);
+      selectedWrap.appendChild(chip);
+    });
+  } else {
+    const empty = document.createElement('span');
+    empty.style.cssText = 'font-size:11px;color:var(--muted);font-weight:700;padding:5px 0;';
+    empty.textContent = 'Selecciona uno o varios estudios para la cita.';
+    selectedWrap.appendChild(empty);
+  }
+
+  const q = agCanon(agMcQuery);
+  const filtered = agEstudios.filter((e) => {
+    if (agMcCat && e.categoria !== agMcCat) return false;
+    if (!q) return true;
+    return [
+      e.nombre,
+      e.nombre_corto,
+      e.clave_externa,
+      e.categoria,
+      e.subcategoria,
+      e.sinonimos_busqueda,
+    ].some((field) => agCanon(field).includes(q));
+  });
+  const visible = filtered.slice(0, 60);
+  if (countEl) countEl.textContent = `${filtered.length} estudio${filtered.length !== 1 ? 's' : ''}${filtered.length > visible.length ? ' (mostrando 60)' : ''}`;
+  if (selectedCountEl) selectedCountEl.textContent = `${agMcSel.length} seleccionado${agMcSel.length !== 1 ? 's' : ''}`;
+
+  cont.innerHTML = '';
+  if (!visible.length) {
+    const empty = document.createElement('div');
+    empty.className = 'mc-slot-loading';
+    empty.textContent = 'Sin estudios para esa busqueda';
+    cont.appendChild(empty);
+    return;
+  }
+  const selectedIds = new Set(agMcSel.map((study) => Number(study.id)));
+  visible.forEach((study) => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = `mc-study-row${selectedIds.has(Number(study.id)) ? ' selected' : ''}`;
+    row.title = study.categoria || '';
+    row.addEventListener('click', () => mcToggleEstudio(study.id));
+    const left = document.createElement('div');
+    const name = document.createElement('div');
+    name.className = 'mc-study-name';
+    name.textContent = study.nombre;
+    const meta = document.createElement('div');
+    meta.className = 'mc-study-meta';
+    meta.textContent = [study.clave_externa, study.categoria, study.nombre_corto].filter(Boolean).join(' · ');
+    left.append(name, meta);
+    const price = document.createElement('div');
+    price.className = 'mc-study-price';
+    price.textContent = `$${fmt(study.precio || 0)}`;
+    row.append(left, price);
+    cont.appendChild(row);
+  });
 }
 
 function mcToggleEstudio(id) {
@@ -902,7 +1012,7 @@ async function mcCargarSlots() {
   try {
     let url = `/api/agenda/disponibilidad?fecha=${fecha}&sucursal=${suc}&duracion=${dur}`;
     if (tec) url += `&tecnico_id=${tec}`;
-    // Excluir la cita que se está editando (el backend la excluye por estado)
+    if (agEditId) url += `&exclude_cita_id=${encodeURIComponent(agEditId)}`;
     const r = await api(url);
     if (!r.ok) throw new Error();
     const slots = await r.json();
@@ -960,7 +1070,6 @@ async function guardarCita() {
     fecha, hora_inicio: ini, hora_fin: fin,
     duracion_min: Number(document.getElementById('mc-duracion').value),
     estudios_ids: agMcSel.map(e => e.id),
-    estudios_nombres: agMcSel.map(e => e.nombre),
     notas: document.getElementById('mc-notas').value.trim() || null,
   };
   btn.disabled = true; btn.textContent = 'Guardando…';
@@ -993,15 +1102,15 @@ function abrirDetalleCita(cita) {
   btnOrden.disabled = tieneOrden;
   btnOrden.textContent = tieneOrden ? `📋 ${c.orden_folio}` : '🧾 Crear orden';
   document.getElementById('cd-info').innerHTML = `
-    <div class="cd-row"><span class="cd-key">Fecha</span><span class="cd-val">${agFmtFecha(c.fecha)}</span></div>
-    <div class="cd-row"><span class="cd-key">Horario</span><span class="cd-val">${c.hora_inicio} – ${c.hora_fin}</span></div>
-    <div class="cd-row"><span class="cd-key">Sucursal</span><span class="cd-val">${c.sucursal}</span></div>
-    ${c.tecnico_nombre ? `<div class="cd-row"><span class="cd-key">Técnico</span><span class="cd-val">${c.tecnico_nombre}</span></div>` : ''}
-    ${c.paciente_celular ? `<div class="cd-row"><span class="cd-key">Celular</span><span class="cd-val">${c.paciente_celular}</span></div>` : ''}
-    ${c.estudios_nombres ? `<div class="cd-row"><span class="cd-key">Estudios</span><span class="cd-val" style="max-width:240px;text-align:right;">${c.estudios_nombres}</span></div>` : ''}
-    ${c.notas ? `<div class="cd-row"><span class="cd-key">Notas</span><span class="cd-val">${c.notas}</span></div>` : ''}
-    <div class="cd-row"><span class="cd-key">Estado</span><span class="ag-pill ag-pill-${c.estado}">${c.estado.replace('_', ' ')}</span></div>
-    <div class="cd-row"><span class="cd-key">Creada por</span><span class="cd-val">${c.creado_por}</span></div>
+    <div class="cd-row"><span class="cd-key">Fecha</span><span class="cd-val">${escapeHTML(agFmtFecha(c.fecha))}</span></div>
+    <div class="cd-row"><span class="cd-key">Horario</span><span class="cd-val">${escapeHTML(c.hora_inicio)} – ${escapeHTML(c.hora_fin)}</span></div>
+    <div class="cd-row"><span class="cd-key">Sucursal</span><span class="cd-val">${escapeHTML(c.sucursal)}</span></div>
+    ${c.tecnico_nombre ? `<div class="cd-row"><span class="cd-key">Técnico</span><span class="cd-val">${escapeHTML(c.tecnico_nombre)}</span></div>` : ''}
+    ${c.paciente_celular ? `<div class="cd-row"><span class="cd-key">Celular</span><span class="cd-val">${escapeHTML(c.paciente_celular)}</span></div>` : ''}
+    ${c.estudios_nombres ? `<div class="cd-row"><span class="cd-key">Estudios</span><span class="cd-val" style="max-width:240px;text-align:right;">${escapeHTML(c.estudios_nombres)}</span></div>` : ''}
+    ${c.notas ? `<div class="cd-row"><span class="cd-key">Notas</span><span class="cd-val">${escapeHTML(c.notas)}</span></div>` : ''}
+    <div class="cd-row"><span class="cd-key">Estado</span><span class="ag-pill ag-pill-${escapeHTML(c.estado)}">${escapeHTML(String(c.estado || '').replace('_', ' '))}</span></div>
+    <div class="cd-row"><span class="cd-key">Creada por</span><span class="cd-val">${escapeHTML(c.creado_por)}</span></div>
   `;
   document.getElementById('modal-cita-detalle').classList.add('open');
 }
@@ -1117,6 +1226,10 @@ async function eliminarBloqueo(id) {
 document.getElementById('modal-cita').addEventListener('click', function (e) { if (e.target === this) cerrarModalCita(); });
 document.getElementById('modal-cita-detalle').addEventListener('click', function (e) { if (e.target === this) cerrarModalDetalle(); });
 document.getElementById('modal-bloqueo').addEventListener('click', function (e) { if (e.target === this) cerrarModalBloqueo(); });
+document.getElementById('mc-search-estudios')?.addEventListener('input', function () {
+  agMcQuery = this.value;
+  mcRenderEstudios();
+});
 
 /* ── EMPRESA ── */
 
