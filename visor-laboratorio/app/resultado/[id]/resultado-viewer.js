@@ -1,9 +1,57 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-export default function ResultadoViewer({ id, pdfUrl }) {
-  const [isLoading, setIsLoading] = useState(Boolean(pdfUrl));
+export default function ResultadoViewer({ id }) {
+  const [status, setStatus] = useState("checking");
+  const [pdfUrl, setPdfUrl] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let timeoutId = window.setTimeout(() => controller.abort(), 12000);
+
+    async function verifyResult() {
+      setStatus("checking");
+      setError("");
+      setPdfUrl("");
+
+      try {
+        const response = await fetch(`/api/resultado/${encodeURIComponent(id)}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok || !data.exists || !data.pdfUrl) {
+          setError(data.error || "Resultado no disponible");
+          setStatus(response.status === 404 ? "not_found" : "error");
+          return;
+        }
+
+        setPdfUrl(data.pdfUrl);
+        setStatus("loading_pdf");
+      } catch (verifyError) {
+        setError(
+          verifyError.name === "AbortError"
+            ? "El almacenamiento tardo demasiado en responder"
+            : "No se pudo verificar el resultado"
+        );
+        setStatus("error");
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
+    }
+
+    verifyResult();
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [id]);
+
+  const isBusy = status === "checking" || status === "loading_pdf";
 
   return (
     <div className="min-h-screen bg-slate-100 px-4 py-6 text-slate-900">
@@ -28,19 +76,40 @@ export default function ResultadoViewer({ id, pdfUrl }) {
         </header>
 
         <main className="relative min-h-[70vh] flex-1 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-          {!pdfUrl ? (
+          {status === "checking" ? (
             <div className="flex h-full min-h-[70vh] flex-col items-center justify-center px-6 text-center">
               <h2 className="text-xl font-semibold text-slate-950">
-                Falta configurar la URL de R2
+                Verificando resultado
               </h2>
               <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">
-                Define NEXT_PUBLIC_R2_URL en Vercel o en .env.local para que el
-                visor pueda construir la direccion publica del PDF.
+                Estamos confirmando que el PDF digital este disponible.
+              </p>
+            </div>
+          ) : status === "not_found" ? (
+            <div className="flex h-full min-h-[70vh] flex-col items-center justify-center px-6 text-center">
+              <h2 className="text-xl font-semibold text-slate-950">
+                Resultado no encontrado
+              </h2>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">
+                El resultado puede estar pendiente de carga o el codigo de
+                verificacion no corresponde a un archivo disponible.
+              </p>
+              <p className="mt-4 text-xs font-semibold text-slate-500">
+                ID: <span className="font-mono">{id}</span>
+              </p>
+            </div>
+          ) : status === "error" ? (
+            <div className="flex h-full min-h-[70vh] flex-col items-center justify-center px-6 text-center">
+              <h2 className="text-xl font-semibold text-slate-950">
+                No se pudo abrir el resultado
+              </h2>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">
+                {error || "Intentalo de nuevo mas tarde o contacta al laboratorio."}
               </p>
             </div>
           ) : (
             <>
-              {isLoading && (
+              {isBusy && (
                 <div className="absolute inset-0 z-10 flex items-center justify-center bg-white">
                   <p className="text-sm font-medium text-slate-500">
                     Cargando resultado...
@@ -51,7 +120,7 @@ export default function ResultadoViewer({ id, pdfUrl }) {
                 src={`${pdfUrl}#toolbar=0`}
                 className="h-full min-h-[70vh] w-full"
                 title="Resultado del Estudio"
-                onLoad={() => setIsLoading(false)}
+                onLoad={() => setStatus("ready")}
               />
             </>
           )}

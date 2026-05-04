@@ -39,7 +39,7 @@ npm run dev
 Abre:
 
 ```txt
-http://localhost:3000/resultado/demo
+http://localhost:3000/resultado/00000000-0000-4000-8000-000000000000
 ```
 
 ## Deploy en Vercel
@@ -61,3 +61,10 @@ resultado-[UUID].pdf
 ```
 
 Si el backend usa otro key de R2, ajusta `NEXT_PUBLIC_R2_OBJECT_TEMPLATE`.
+
+## Seguridad pendiente recomendada
+
+La version actual valida que el PDF exista antes de abrirlo, pero sigue usando
+una URL publica de R2. Para datos medicos, el siguiente paso recomendado es
+servir el PDF mediante un endpoint controlado por el backend y mantener el bucket
+R2 privado.

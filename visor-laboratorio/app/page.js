@@ -19,7 +19,7 @@ export default function Home() {
         </p>
         <div className="mt-8">
           <Link
-            href="/resultado/demo"
+            href="/resultado/00000000-0000-4000-8000-000000000000"
             className="inline-flex h-11 items-center rounded-md bg-blue-700 px-5 text-sm font-semibold text-white transition hover:bg-blue-800"
           >
             Ver ruta de ejemplo
