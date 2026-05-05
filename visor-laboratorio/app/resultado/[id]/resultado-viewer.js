@@ -3,10 +3,19 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 
+function getCanEmbedPdf() {
+  if (typeof window === "undefined") return true;
+
+  return !window.matchMedia(
+    "(max-width: 767px), (hover: none) and (pointer: coarse)"
+  ).matches;
+}
+
 export default function ResultadoViewer({ id }) {
   const [status, setStatus] = useState("checking");
   const [pdfUrl, setPdfUrl] = useState("");
   const [error, setError] = useState("");
+  const [canEmbedPdf] = useState(getCanEmbedPdf);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -31,7 +40,7 @@ export default function ResultadoViewer({ id }) {
         }
 
         setPdfUrl(data.pdfUrl);
-        setStatus("loading_pdf");
+        setStatus(canEmbedPdf ? "loading_pdf" : "ready");
       } catch (verifyError) {
         setError(
           verifyError.name === "AbortError"
@@ -50,7 +59,7 @@ export default function ResultadoViewer({ id }) {
       window.clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [id]);
+  }, [id, canEmbedPdf]);
 
   const isBusy = status === "checking" || status === "loading_pdf";
 
@@ -83,13 +92,24 @@ export default function ResultadoViewer({ id }) {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex h-11 items-center justify-center rounded-md bg-[#1598cf] px-4 text-sm font-semibold text-white transition hover:bg-[#0f7eaa] focus:outline-none focus:ring-2 focus:ring-[#1598cf] focus:ring-offset-2"
-          >
-            Imprimir / Descargar
-          </button>
+          {pdfUrl && !canEmbedPdf ? (
+            <a
+              href={pdfUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-11 items-center justify-center rounded-md bg-[#1598cf] px-4 text-sm font-semibold text-white transition hover:bg-[#0f7eaa] focus:outline-none focus:ring-2 focus:ring-[#1598cf] focus:ring-offset-2"
+            >
+              Abrir PDF
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="inline-flex h-11 items-center justify-center rounded-md bg-[#1598cf] px-4 text-sm font-semibold text-white transition hover:bg-[#0f7eaa] focus:outline-none focus:ring-2 focus:ring-[#1598cf] focus:ring-offset-2"
+            >
+              Imprimir / Descargar
+            </button>
+          )}
         </header>
 
         <main className="relative min-h-[70vh] flex-1 overflow-hidden rounded-lg border border-[#d8ead0] bg-white shadow-sm">
@@ -123,6 +143,29 @@ export default function ResultadoViewer({ id }) {
               <p className="mt-3 max-w-xl text-sm leading-6 text-[#4f6673]">
                 {error || "Intentalo de nuevo mas tarde o contacta al laboratorio."}
               </p>
+            </div>
+          ) : !canEmbedPdf ? (
+            <div className="flex h-full min-h-[70vh] flex-col items-center justify-center px-5 text-center">
+              <div className="w-full max-w-sm">
+                <h2 className="text-xl font-semibold text-[#15364a]">
+                  Resultado listo
+                </h2>
+                <p className="mt-3 text-sm leading-6 text-[#4f6673]">
+                  Abre el PDF con el visor del telefono para consultarlo o
+                  descargarlo.
+                </p>
+                <a
+                  href={pdfUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-6 inline-flex h-12 w-full items-center justify-center rounded-md bg-[#1598cf] px-4 text-sm font-semibold text-white transition hover:bg-[#0f7eaa] focus:outline-none focus:ring-2 focus:ring-[#1598cf] focus:ring-offset-2"
+                >
+                  Abrir PDF
+                </a>
+                <p className="mt-4 break-all text-xs leading-5 text-[#6b7f88]">
+                  ID: <span className="font-mono">{id}</span>
+                </p>
+              </div>
             </div>
           ) : (
             <>
