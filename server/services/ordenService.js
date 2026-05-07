@@ -63,6 +63,72 @@ async function sincronizarEstadoPagoOrden(ordenId, executor = { get, run }) {
   return estadoPago;
 }
 
+function roundMoney(value) {
+  return Math.round((Number(value) || 0) * 100) / 100;
+}
+
+function calcularDescuento(subtotal, tipo = 'ninguno', valor = 0) {
+  const base = roundMoney(subtotal);
+  const discountType = ['ninguno', 'porcentaje', 'monto'].includes(tipo) ? tipo : 'ninguno';
+  const discountValue = Math.max(0, Number(valor) || 0);
+
+  if (discountType === 'ninguno' || base <= 0 || discountValue <= 0) {
+    return {
+      tipo: 'ninguno',
+      valor: 0,
+      monto: 0,
+      total: base,
+    };
+  }
+
+  if (discountType === 'porcentaje') {
+    const pct = Math.min(100, discountValue);
+    const monto = roundMoney(base * (pct / 100));
+    return { tipo: discountType, valor: pct, monto, total: roundMoney(base - monto) };
+  }
+
+  const monto = Math.min(base, roundMoney(discountValue));
+  return { tipo: discountType, valor: monto, monto, total: roundMoney(base - monto) };
+}
+
+function normalizarDescuentoOrden(descuento = {}, subtotal = 0) {
+  const tipo = String(descuento.tipo || descuento.descuento_tipo || 'ninguno').trim();
+  const valor = descuento.valor ?? descuento.descuento_valor ?? 0;
+  const motivo = String(descuento.motivo || descuento.descuento_motivo || '').replace(/\s+/g, ' ').trim();
+  const calculado = calcularDescuento(subtotal, tipo, valor);
+
+  if (calculado.tipo !== 'ninguno' && calculado.monto > 0 && !motivo) {
+    const error = new Error('El motivo del descuento es requerido');
+    error.status = 400;
+    throw error;
+  }
+
+  return { ...calculado, motivo: calculado.tipo === 'ninguno' ? null : motivo };
+}
+
+async function recalcularTotalesOrden(ordenId, executor = { get, run }) {
+  const orden = await executor.get(`SELECT * FROM ordenes WHERE id = ?`, [ordenId]);
+  if (!orden) return null;
+
+  const row = await executor.get(
+    `SELECT COALESCE(SUM(precio), 0) AS subtotal FROM orden_estudios WHERE orden_id = ?`,
+    [ordenId]
+  );
+  const subtotal = roundMoney(row?.subtotal || 0);
+  const descuento = calcularDescuento(subtotal, orden.descuento_tipo, orden.descuento_valor);
+  const pagado = roundMoney(orden.pagado);
+  const saldo = Math.max(0, roundMoney(descuento.total - pagado));
+
+  await executor.run(
+    `UPDATE ordenes
+       SET subtotal = ?, descuento_tipo = ?, descuento_valor = ?, descuento_monto = ?, total = ?, saldo = ?
+     WHERE id = ?`,
+    [subtotal, descuento.tipo, descuento.valor, descuento.monto, descuento.total, saldo, ordenId]
+  );
+  await sincronizarEstadoPagoOrden(ordenId, executor);
+  return executor.get(`SELECT * FROM ordenes WHERE id = ?`, [ordenId]);
+}
+
 function normalizarCampoEtiqueta(value, fallback = '') {
   const clean = String(value || '').replace(/\s+/g, ' ').trim();
   return clean || fallback;
@@ -234,6 +300,9 @@ async function crearOrdenSegura({
   medico,
   medico_telefono,
   estudios,
+  descuento = null,
+  descuento_usuario_id = null,
+  descuento_usuario = null,
 }) {
   return withTransaction(async (tx) => {
     const registro = await generarRegistroPaciente(tx);
@@ -251,19 +320,39 @@ async function crearOrdenSegura({
       [folio, sucursal, pacienteId, medico || null, medico_telefono?.trim() || null, ESTADOS_PAGO.PENDIENTE, ahoraLocal()]
     );
 
-    let total = 0;
+    let subtotal = 0;
     for (const estudioId of estudios) {
       const estudio = await tx.get(`SELECT * FROM estudios WHERE id = ?`, [estudioId]);
       if (!estudio) throw new Error(`Estudio no encontrado: ${estudioId}`);
-      total += Number(estudio.precio);
+      subtotal += Number(estudio.precio);
       await tx.run(
         `INSERT INTO orden_estudios (orden_id, estudio_id, precio) VALUES (?, ?, ?)`,
         [orden.lastID, estudioId, estudio.precio]
       );
     }
 
-    const totalRedondeado = Math.round(total * 100) / 100;
-    await tx.run(`UPDATE ordenes SET total = ?, saldo = ? WHERE id = ?`, [totalRedondeado, totalRedondeado, orden.lastID]);
+    const subtotalRedondeado = roundMoney(subtotal);
+    const descuentoNormalizado = normalizarDescuentoOrden(descuento || {}, subtotalRedondeado);
+    await tx.run(
+      `UPDATE ordenes
+         SET subtotal = ?, descuento_tipo = ?, descuento_valor = ?, descuento_monto = ?,
+             descuento_motivo = ?, descuento_usuario_id = ?, descuento_usuario = ?, descuento_fecha = ?,
+             total = ?, saldo = ?
+       WHERE id = ?`,
+      [
+        subtotalRedondeado,
+        descuentoNormalizado.tipo,
+        descuentoNormalizado.valor,
+        descuentoNormalizado.monto,
+        descuentoNormalizado.motivo,
+        descuentoNormalizado.tipo === 'ninguno' ? null : descuento_usuario_id,
+        descuentoNormalizado.tipo === 'ninguno' ? null : descuento_usuario,
+        descuentoNormalizado.tipo === 'ninguno' ? null : ahoraLocal(),
+        descuentoNormalizado.total,
+        descuentoNormalizado.total,
+        orden.lastID,
+      ]
+    );
     await sincronizarEstadoPagoOrden(orden.lastID, tx);
     const etiquetas = await regenerarEtiquetasOrden(orden.lastID, tx);
     const empresa = await tx.get(`SELECT * FROM empresa WHERE id = 1`);
@@ -275,7 +364,9 @@ async function crearOrdenSegura({
     return {
       folio,
       ordenId: orden.lastID,
-      total: totalRedondeado,
+      subtotal: subtotalRedondeado,
+      descuento_monto: descuentoNormalizado.monto,
+      total: descuentoNormalizado.total,
       esNuevoPaciente: true,
       etiquetas,
       empresa,
@@ -371,9 +462,9 @@ async function crearOrdenDesdeCitaSegura(cita, { sucursal, medico }) {
       );
     }
 
-    const totalRedondeado = Math.round(total * 100) / 100;
+    const totalRedondeado = roundMoney(total);
     if (totalRedondeado > 0) {
-      await tx.run(`UPDATE ordenes SET total = ?, saldo = ? WHERE id = ?`, [totalRedondeado, totalRedondeado, orden.lastID]);
+      await tx.run(`UPDATE ordenes SET subtotal = ?, total = ?, saldo = ? WHERE id = ?`, [totalRedondeado, totalRedondeado, totalRedondeado, orden.lastID]);
     }
     await sincronizarEstadoPagoOrden(orden.lastID, tx);
     await regenerarEtiquetasOrden(orden.lastID, tx);
@@ -391,4 +482,7 @@ module.exports = {
   crearOrdenSegura,
   registrarPagoSeguro,
   crearOrdenDesdeCitaSegura,
+  calcularDescuento,
+  normalizarDescuentoOrden,
+  recalcularTotalesOrden,
 };

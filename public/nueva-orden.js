@@ -67,6 +67,113 @@
       return round2(val).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
+    function getCurrentPermissions() {
+      try {
+        const parsed = JSON.parse(sessionStorage.getItem('permissions') || '[]');
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (_) {
+        return [];
+      }
+    }
+
+    function hasPermission(permission) {
+      return getCurrentPermissions().includes(permission);
+    }
+
+    function calcularDescuentoLocal(subtotal, tipo, valor) {
+      const base = round2(subtotal);
+      const tipoSeguro = ['ninguno', 'porcentaje', 'monto'].includes(tipo) ? tipo : 'ninguno';
+      const val = Math.max(0, Number(valor) || 0);
+      if (tipoSeguro === 'ninguno' || base <= 0 || val <= 0) return { tipo: 'ninguno', valor: 0, monto: 0, total: base };
+      if (tipoSeguro === 'porcentaje') {
+        const pct = Math.min(100, val);
+        const monto = round2(base * (pct / 100));
+        return { tipo: tipoSeguro, valor: pct, monto, total: round2(base - monto) };
+      }
+      const monto = Math.min(base, round2(val));
+      return { tipo: tipoSeguro, valor: monto, monto, total: round2(base - monto) };
+    }
+
+    function getDiscountPayload(tab, subtotal) {
+      if (!hasPermission('ordenes.discount')) return null;
+      const tipo = document.getElementById(`descuento-tipo-${tab}`)?.value || 'ninguno';
+      const valor = document.getElementById(`descuento-valor-${tab}`)?.value || 0;
+      const motivo = document.getElementById(`descuento-motivo-${tab}`)?.value?.trim() || '';
+      const descuento = calcularDescuentoLocal(subtotal, tipo, valor);
+      return { tipo: descuento.tipo, valor: descuento.valor, motivo };
+    }
+
+    function getValidatedDiscountPayload(tab, subtotal, statusEl = null) {
+      const payload = getDiscountPayload(tab, subtotal);
+      if (!payload) return null;
+      const calculado = calcularDescuentoLocal(subtotal, payload.tipo, payload.valor);
+      if (calculado.monto > 0 && !payload.motivo) {
+        const message = 'El motivo del descuento es requerido';
+        if (statusEl) setStatus(statusEl, message);
+        else showToast(message, 'AVISO');
+        document.getElementById(`descuento-motivo-${tab}`)?.focus();
+        return { error: message };
+      }
+      return payload;
+    }
+
+    function setDiscountControls(tab, data = {}) {
+      const tipoEl = document.getElementById(`descuento-tipo-${tab}`);
+      const valorEl = document.getElementById(`descuento-valor-${tab}`);
+      const motivoEl = document.getElementById(`descuento-motivo-${tab}`);
+      if (!tipoEl || !valorEl || !motivoEl) return;
+      tipoEl.value = data.tipo || data.descuento_tipo || 'ninguno';
+      valorEl.value = Number(data.valor ?? data.descuento_valor ?? 0) || '';
+      motivoEl.value = data.motivo || data.descuento_motivo || '';
+    }
+
+    function renderDiscountPanels() {
+      const canDiscount = hasPermission('ordenes.discount');
+      const nuevaPanel = document.getElementById('discount-panel-nueva');
+      if (nuevaPanel) nuevaPanel.style.display = canDiscount ? '' : 'none';
+
+      const editPanel = document.getElementById('discount-panel-edit');
+      if (!editPanel) return;
+      const lockedByPayment = Number(ordenActual?.pagado || 0) > 0;
+      const lockedByState = ordenActual && !['pendiente', 'en_proceso'].includes(ordenActual.estado);
+      editPanel.style.display = canDiscount && ordenActual ? '' : 'none';
+      editPanel.querySelectorAll('input, select, button').forEach(el => {
+        el.disabled = !canDiscount || lockedByPayment || lockedByState;
+      });
+      const note = document.getElementById('discount-edit-note');
+      if (note) {
+        note.textContent = lockedByPayment
+          ? 'El descuento no se puede cambiar porque la orden ya tiene pagos.'
+          : lockedByState ? 'El descuento no se puede cambiar en una orden finalizada.' : '';
+      }
+    }
+
+    function isOrderTotalLocked() {
+      return Boolean(ordenActual) &&
+        (Number(ordenActual.pagado || 0) > 0 || !['pendiente', 'en_proceso'].includes(ordenActual.estado));
+    }
+
+    function getOrderTotalLockReason() {
+      if (!ordenActual) return '';
+      if (Number(ordenActual.pagado || 0) > 0) return 'la orden ya tiene pagos registrados';
+      if (!['pendiente', 'en_proceso'].includes(ordenActual.estado)) return `la orden esta ${ordenActual.estado}`;
+      return '';
+    }
+
+    function renderDiscountSummary(tab, subtotal) {
+      const payload = getDiscountPayload(tab, subtotal) || { tipo: 'ninguno', valor: 0 };
+      const descuento = calcularDescuentoLocal(subtotal, payload.tipo, payload.valor);
+      const subtotalEl = document.getElementById(tab === 'nueva' ? 'subtotal-nueva' : 'subtotal-edit-orden');
+      const descuentoEl = document.getElementById(`descuento-monto-${tab}`);
+      if (subtotalEl) subtotalEl.textContent = fmt(subtotal);
+      if (descuentoEl) descuentoEl.textContent = fmt(descuento.monto);
+      if (tab === 'edit') {
+        const totalEl = document.getElementById('e-total');
+        if (totalEl) totalEl.value = '$' + fmt(descuento.total);
+      }
+      return descuento;
+    }
+
     function calcularEdadDesdeFecha(fechaNacimiento) {
       if (!fechaNacimiento) return null;
       const birth = new Date(`${fechaNacimiento}T00:00:00`);
@@ -229,7 +336,7 @@
       const visible = getEstudiosFiltrados(tab);
     
       const isLocked = tab === 'edit' && ordenActual &&
-        (ordenActual.estado === 'completado' || ordenActual.estado === 'cancelado');
+        (Number(ordenActual.pagado || 0) > 0 || ordenActual.estado === 'completado' || ordenActual.estado === 'cancelado');
     
       container.innerHTML = '';
     
@@ -336,7 +443,8 @@
     function updateSummary(tab) {
       const arr   = tab === 'nueva' ? seleccionadosNueva : seleccionadosEdit;
       // round2 para evitar errores de punto flotante en acumulaciÃ³n
-      const total = round2(arr.reduce((s, e) => s + e.precio, 0));
+      const subtotal = round2(arr.reduce((s, e) => s + e.precio, 0));
+      const total = tab === 'nueva' ? renderDiscountSummary(tab, subtotal).total : subtotal;
     
       if (tab === 'nueva') {
         document.getElementById('count-nueva').textContent = arr.length;
@@ -377,6 +485,7 @@
         fechaNacimiento = null,
         medico     = null,
         medicoTel  = null,
+        descuento  = null,
         empresa    = {}
       } = opts;
     
@@ -390,7 +499,16 @@
       });
     
       /* â”€â”€ Total con round2 para evitar artefactos de punto flotante â”€â”€ */
-      const total = round2(estudios.reduce((s, e) => s + e.precio, 0));
+      const subtotal = round2(estudios.reduce((s, e) => s + e.precio, 0));
+      const descuentoCalc = descuento
+        ? calcularDescuentoLocal(subtotal, descuento.tipo, descuento.valor)
+        : { monto: 0, total: subtotal };
+      const total = descuentoCalc.total;
+      const descuentoHtml = descuentoCalc.monto > 0
+        ? `<div class="ticket-money-line"><span>SUBTOTAL</span><span>$${fmt(subtotal)}</span></div>
+           <div class="ticket-money-line"><span>DESCUENTO</span><span>-$${fmt(descuentoCalc.monto)}</span></div>
+           ${descuento?.motivo ? `<div class="ticket-kv"><span class="k">MOTIVO:</span><span class="v">${esc(descuento.motivo)}</span></div>` : ''}`
+        : '';
     
       /* â”€â”€ Cabecera de empresa â”€â”€ */
       const logoHtml = empresa.logo
@@ -497,6 +615,7 @@
         ${rowsHtml}
         ${indicacionesHtml}
         <hr class="ticket-sep">
+        ${descuentoHtml}
         <div class="ticket-total">
           <span>TOTAL</span>
           <span>$${fmt(total)}</span>
@@ -705,6 +824,12 @@
             font-weight: bold;
             flex-shrink: 0;
           }
+          #ticket-print .ticket-money-line {
+            display: flex;
+            justify-content: space-between;
+            font-size: 8.5pt;
+            line-height: 1.25;
+          }
           #ticket-print .ticket-indicaciones {
             margin-top: 6px;
             font-size: 7.5pt;
@@ -795,7 +920,6 @@
       const folio = esc(orden?.folio || '');
       const fechaNacimiento = formatBirthDate(orden?.paciente_fecha_nacimiento);
       const sexoPaciente = esc(sexoPacienteLabel(orden?.paciente_sexo) || 'Paciente');
-      const sucursal = esc(orden?.sucursal || '');
       const fechaOrdenRaw = String(orden?.fecha || '').trim();
       let fechaHoraEtiqueta = esc(fechaOrdenRaw.replace('T', ' ').slice(0, 16));
       if (fechaOrdenRaw) {
@@ -831,8 +955,7 @@
                 ${indice}
               </div>
               <div class="lb-meta-row">
-                <span class="lb-meta">Folio: ${folio}</span>
-                <span class="lb-meta">${sucursal}</span>
+                <span class="lb-meta lb-folio">Folio: ${folio}</span>
               </div>
               <div class="lb-meta-row">
                 <span class="lb-meta">${sexoPaciente}</span>
@@ -969,6 +1092,13 @@
             min-width: 0;
             flex: 1 1 0;
           }
+          .lb-folio {
+            flex-basis: 100%;
+            font-size: 4.6pt;
+            font-weight: 800;
+            overflow: visible;
+            text-overflow: clip;
+          }
           .lb-meta-row-full {
             display: block;
           }
@@ -1043,12 +1173,16 @@
       const empresa   = await getEmpresa(true);
       const medicoVal = document.getElementById('medico')?.value?.trim()            || null;
       const telVal    = document.getElementById('medico-telefono')?.value?.trim()   || null;
+      const subtotalCotizacion = round2(seleccionadosNueva.reduce((s, e) => s + Number(e.precio || 0), 0));
+      const descuentoCotizacion = getValidatedDiscountPayload('nueva', subtotalCotizacion);
+      if (descuentoCotizacion?.error) return;
     
       const html = buildTicketHtml({
         estudios  : seleccionadosNueva,
         tipoDoc   : 'COTIZACION',
         medico    : medicoVal,
         medicoTel : telVal,
+        descuento : descuentoCotizacion,
         empresa
       });
     
@@ -1082,6 +1216,9 @@
       const sucursal       = document.getElementById('sucursal').value;
       const medico         = document.getElementById('medico').value.trim();
       const medicoTelefono = document.getElementById('medico-telefono').value.trim();
+      const subtotalOrden  = round2(seleccionadosNueva.reduce((s, e) => s + Number(e.precio || 0), 0));
+      const descuentoOrden = getValidatedDiscountPayload('nueva', subtotalOrden, statusEl);
+      if (descuentoOrden?.error) return;
     
       if (!nombre)                         { setStatus(statusEl, 'El nombre del paciente es requerido'); return; }
       if (!fechaNacimiento || !edad)       { setStatus(statusEl, 'Ingresa una fecha de nacimiento valida'); return; }
@@ -1099,7 +1236,8 @@
           body: JSON.stringify({
             nombre, celular, fecha_nacimiento: fechaNacimiento, sexo, sucursal, medico,
             medico_telefono: medicoTelefono || null,
-            estudios: seleccionadosNueva.map(e => e.id)
+            estudios: seleccionadosNueva.map(e => e.id),
+            ...(descuentoOrden ? { descuento: descuentoOrden } : {})
           })
         });
     
@@ -1129,6 +1267,7 @@
         seleccionadosNueva = [];
         searchTermNueva    = '';
         document.getElementById('search-nueva').value = '';
+        setDiscountControls('nueva');
         renderStudyList('nueva');
         updateSummary('nueva');
         // Devolver foco al buscador de estudios para la siguiente orden
@@ -1196,6 +1335,7 @@
     function renderOrden() {
       const o          = ordenActual;
       const isEditable = o.estado === 'pendiente' || o.estado === 'en_proceso';
+      const canEditTotals = isEditable && Number(o.pagado || 0) <= 0;
       const isLocked   = !isEditable;
     
       const ESTADO_LABELS = {
@@ -1211,7 +1351,6 @@
       badge.className = `estado-badge estado-${o.estado}`;
       badge.textContent = ESTADO_LABELS[o.estado] || o.estado;
     
-      document.getElementById('edit-estado').value          = o.estado;
       document.getElementById('e-nombre').value             = o.paciente_nombre  || '';
       document.getElementById('e-celular').value            = o.paciente_celular || '';
       document.getElementById('e-fecha-nacimiento').value   = o.paciente_fecha_nacimiento || '';
@@ -1221,6 +1360,14 @@
       document.getElementById('e-medico-telefono').value    = o.medico_telefono  || '';
       document.getElementById('e-fecha').value              = o.fecha            || '';
       document.getElementById('e-total').value              = '$' + fmt(o.total);
+      setDiscountControls('edit', o);
+      const subtotalOrden = round2(o.subtotal || estudiosAsignados.reduce((s, e) => s + Number(e.precio || 0), 0));
+      const descuentoOrden = calcularDescuentoLocal(subtotalOrden, o.descuento_tipo, o.descuento_valor);
+      const subtotalEditEl = document.getElementById('subtotal-edit-orden');
+      const descuentoEditEl = document.getElementById('descuento-monto-edit');
+      if (subtotalEditEl) subtotalEditEl.textContent = fmt(subtotalOrden);
+      if (descuentoEditEl) descuentoEditEl.textContent = fmt(descuentoOrden.monto);
+      renderDiscountPanels();
     
       ['e-nombre', 'e-celular', 'e-fecha-nacimiento', 'e-sexo', 'e-sucursal', 'e-medico', 'e-medico-telefono'].forEach(id => {
         document.getElementById(id).disabled = isLocked;
@@ -1228,16 +1375,16 @@
       document.getElementById('btn-guardar-paciente').disabled = isLocked;
     
       const notice = document.getElementById('readonly-notice');
-      if (isLocked) {
+      if (!canEditTotals) {
         notice.style.display = '';
-        document.getElementById('readonly-reason').textContent = o.estado;
+        document.getElementById('readonly-reason').textContent = getOrderTotalLockReason() || o.estado;
         document.getElementById('add-studies-section').style.display = 'none';
       } else {
         notice.style.display = 'none';
         document.getElementById('add-studies-section').style.display = '';
       }
     
-      renderAssignedStudies(isEditable);
+      renderAssignedStudies(canEditTotals);
       renderStudyList('edit');
       updateSummary('edit');
     }
@@ -1303,6 +1450,10 @@
        QUITAR ESTUDIO ASIGNADO
     â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
     async function quitarEstudioAsignado(estudio) {
+      if (isOrderTotalLocked()) {
+        showToast(`No se pueden modificar estudios porque ${getOrderTotalLockReason()}.`, 'AVISO');
+        return;
+      }
       if (!confirm(`Quitar "${estudio.nombre}" de esta orden?`)) return;
     
       try {
@@ -1319,55 +1470,23 @@
           return;
         }
     
+        const data = await res.json().catch(() => ({}));
         estudiosAsignados = estudiosAsignados.filter(e => e.id !== estudio.id);
-        ordenActual.total = round2(estudiosAsignados.reduce((s, e) => s + e.precio, 0));
+        ordenActual = data.orden || {
+          ...ordenActual,
+          total: round2(estudiosAsignados.reduce((s, e) => s + e.precio, 0)),
+          subtotal: round2(estudiosAsignados.reduce((s, e) => s + e.precio, 0)),
+        };
         document.getElementById('e-total').value = '$' + fmt(ordenActual.total);
     
         renderAssignedStudies(true);
         renderStudyList('edit');
+        renderOrden();
         showToast(`"${estudio.nombre}" quitado`, 'OK');
     
       } catch (err) {
         console.error('quitarEstudioAsignado:', err);
         showToast('Error al conectar', 'ERROR');
-      }
-    }
-    
-    /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-       ACTUALIZAR ESTADO
-    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-    async function actualizarEstado() {
-      const nuevoEstado = document.getElementById('edit-estado').value;
-      const btn = document.getElementById('btn-actualizar-estado');
-      btn.disabled = true;
-      btn.textContent = 'Actualizando...';
-    
-      try {
-        const res = await apiFetch(`/api/orden/${ordenActual.folio}/estado`, {
-          method: 'PATCH',
-          headers: authHeaders({ 'Content-Type': 'application/json' }),
-          body: JSON.stringify({ estado: nuevoEstado })
-        });
-    
-        if (!res) return;
-    
-        if (!res.ok) {
-          const data = await res.json();
-          showToast(data.error || 'Error al actualizar estado', 'ERROR');
-          return;
-        }
-    
-        ordenActual.estado = nuevoEstado;
-        seleccionadosEdit  = [];
-        renderOrden();
-        showToast('Estado actualizado');
-    
-      } catch (err) {
-        console.error('actualizarEstado:', err);
-        showToast('Error al conectar', 'ERROR');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Actualizar estado';
       }
     }
     
@@ -1440,6 +1559,49 @@
         btn.textContent = 'Guardar cambios del paciente';
       }
     }
+
+    async function guardarDescuentoEdit() {
+      if (!ordenActual) return;
+      const statusEl = document.getElementById('status-edit');
+      setStatus(statusEl, '');
+      const subtotal = round2(ordenActual.subtotal || estudiosAsignados.reduce((s, e) => s + Number(e.precio || 0), 0));
+      if (isOrderTotalLocked()) {
+        setStatus(statusEl, `No se puede modificar el descuento porque ${getOrderTotalLockReason()}.`);
+        return;
+      }
+      const descuento = getValidatedDiscountPayload('edit', subtotal, statusEl);
+      if (!descuento) return;
+      if (descuento.error) return;
+
+      const btn = document.getElementById('btn-guardar-descuento');
+      btn.disabled = true;
+      btn.textContent = 'Guardando...';
+
+      try {
+        const res = await apiFetch(`/api/orden/${ordenActual.folio}/descuento`, {
+          method: 'PATCH',
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify(descuento)
+        });
+
+        if (!res) return;
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setStatus(statusEl, data.error || 'Error al guardar descuento');
+          return;
+        }
+
+        ordenActual = data.orden || ordenActual;
+        renderOrden();
+        showToast('Descuento actualizado');
+      } catch (err) {
+        console.error('guardarDescuentoEdit:', err);
+        setStatus(statusEl, 'Error al conectar');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Guardar descuento';
+      }
+    }
     
     /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
        GUARDAR ESTUDIOS (EDICIÃ“N)
@@ -1449,6 +1611,10 @@
     
       const statusEl = document.getElementById('status-edit');
       setStatus(statusEl, '');
+      if (isOrderTotalLocked()) {
+        setStatus(statusEl, `No se pueden modificar estudios porque ${getOrderTotalLockReason()}.`);
+        return;
+      }
     
       const btn = document.getElementById('btn-guardar-estudios');
       btn.disabled = true;
@@ -1468,16 +1634,22 @@
           setStatus(statusEl, data.error || 'Error al agregar estudios');
           return;
         }
+
+        const data = await res.json().catch(() => ({}));
     
         estudiosAsignados = [...estudiosAsignados, ...seleccionadosEdit.map(e => ({ ...e, estudio_id: e.id }))];
-        // round2 para evitar errores de punto flotante
-        ordenActual.total = round2((ordenActual.total || 0) + seleccionadosEdit.reduce((s, e) => s + e.precio, 0));
+        ordenActual = data.orden || {
+          ...ordenActual,
+          total: round2((ordenActual.total || 0) + seleccionadosEdit.reduce((s, e) => s + e.precio, 0)),
+          subtotal: round2((ordenActual.subtotal || ordenActual.total || 0) + seleccionadosEdit.reduce((s, e) => s + e.precio, 0)),
+        };
         document.getElementById('e-total').value = '$' + fmt(ordenActual.total);
     
         seleccionadosEdit = [];
         renderAssignedStudies(true);
         renderStudyList('edit');
         updateSummary('edit');
+        renderOrden();
         showToast('Estudios agregados a la orden');
     
       } catch (err) {
@@ -1513,9 +1685,23 @@
     document.getElementById('btn-cotizacion').addEventListener('click', generarCotizacion);
     document.getElementById('btn-buscar').addEventListener('click', buscarOrden);
     document.getElementById('btn-limpiar-busqueda').addEventListener('click', limpiarBusqueda);
-    document.getElementById('btn-actualizar-estado').addEventListener('click', actualizarEstado);
     document.getElementById('btn-guardar-paciente').addEventListener('click', guardarPaciente);
     document.getElementById('btn-guardar-estudios').addEventListener('click', guardarEstudiosEdit);
+    document.getElementById('btn-guardar-descuento')?.addEventListener('click', guardarDescuentoEdit);
+    ['descuento-tipo-nueva', 'descuento-valor-nueva', 'descuento-motivo-nueva'].forEach(id => {
+      document.getElementById(id)?.addEventListener('input', () => updateSummary('nueva'));
+      document.getElementById(id)?.addEventListener('change', () => updateSummary('nueva'));
+    });
+    ['descuento-tipo-edit', 'descuento-valor-edit', 'descuento-motivo-edit'].forEach(id => {
+      document.getElementById(id)?.addEventListener('input', () => {
+        const subtotal = round2(ordenActual?.subtotal || estudiosAsignados.reduce((s, e) => s + Number(e.precio || 0), 0));
+        renderDiscountSummary('edit', subtotal);
+      });
+      document.getElementById(id)?.addEventListener('change', () => {
+        const subtotal = round2(ordenActual?.subtotal || estudiosAsignados.reduce((s, e) => s + Number(e.precio || 0), 0));
+        renderDiscountSummary('edit', subtotal);
+      });
+    });
     document.getElementById('folio-input').addEventListener('keydown', e => {
       if (e.key === 'Enter') buscarOrden();
     });
@@ -1536,6 +1722,8 @@
        INIT
     â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
     window.switchTab = switchTab;
+      renderDiscountPanels();
+      updateSummary('nueva');
       cargarEstudios();
   }
 

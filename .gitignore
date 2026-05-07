@@ -9,6 +9,11 @@ storage/resultados/
 database/*.db
 database/*.db-shm
 database/*.db-wal
+database/**/*.db
+database/**/*.db-shm
+database/**/*.db-wal
+database/backups/
+database/imports/*_staging.sql
 public/uploads/resultados/
 
 .vercel

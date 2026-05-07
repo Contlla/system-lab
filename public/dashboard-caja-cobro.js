@@ -6,6 +6,27 @@
     let _historialData = null;
     let _cortesData    = null;
 
+    function getOrdenDiscountSummary(orden = {}, estudios = []) {
+      const subtotalEstudios = (estudios || []).reduce((acc, e) => acc + Number(e.precio || 0), 0);
+      const subtotalOrden = Number(orden.subtotal || 0) > 0 ? Number(orden.subtotal) : subtotalEstudios;
+      let descuentoMonto = Math.max(0, Number(orden.descuento_monto || 0));
+
+      if (
+        descuentoMonto <= 0 &&
+        orden.descuento_tipo &&
+        orden.descuento_tipo !== 'ninguno' &&
+        String(orden.descuento_motivo || '').trim()
+      ) {
+        descuentoMonto = Math.max(0, Math.round((subtotalOrden - Number(orden.total || 0)) * 100) / 100);
+      }
+
+      return {
+        subtotal: subtotalOrden,
+        descuento: descuentoMonto,
+        motivo: String(orden.descuento_motivo || '').trim(),
+      };
+    }
+
     async function buscarOrden() {
       // SEGURIDAD: Sanitizar el folio antes de usarlo en URL
       const folioRaw = document.getElementById('folio-input').value.trim().toUpperCase();
@@ -80,12 +101,21 @@
 
       // Saldo efectivo restante = saldo de API menos pagos mixtos aún no enviados
       const saldoPendiente = getSaldoPendiente();
+      const descuentoResumen = getOrdenDiscountSummary(orden, estudios);
+      const descuentoMonto = descuentoResumen.descuento;
+      const subtotalOrden = descuentoResumen.subtotal;
 
-      const rows = [
+      const rows = [];
+      if (descuentoMonto > 0) {
+        rows.push(['Subtotal', fmt(subtotalOrden), '']);
+        rows.push(['Descuento', '-' + fmt(descuentoMonto), 'val-green']);
+        if (descuentoResumen.motivo) rows.push(['Motivo', descuentoResumen.motivo, '']);
+      }
+      rows.push(
         ['Total orden', fmt(orden.total),         ''],
         ['Pagado',      fmt(orden.pagado),         'val-green'],
         ['Saldo',       fmt(orden.saldo),          orden.saldo > 0 ? 'val-red' : 'val-green'],
-      ];
+      );
 
       const table = document.createElement('div');
       table.style.marginTop = '10px';
@@ -305,7 +335,7 @@
       if (!ordenActual) return;
 
       const saldoPendienteCents = getSaldoPendienteCents();
-      const montoInputRaw       = parseFloat(document.getElementById('monto-input').value) || 0;
+      const montoInputRaw       = parseMoneyInput(document.getElementById('monto-input').value) || 0;
       // SEGURIDAD: rechazar montos negativos o cero en la UI
       const montoInput          = Math.max(0, montoInputRaw);
       const montoInputCents     = toCents(montoInput);
@@ -364,11 +394,11 @@
     function agregarPagoParcial() {
       if (!ordenActual) return;
 
-      const montoRaw   = parseFloat(document.getElementById('monto-input').value) || 0;
+      const montoRaw   = parseMoneyInput(document.getElementById('monto-input').value);
       const referencia = document.getElementById('referencia-input').value.trim();
 
       // SEGURIDAD: validar monto en centavos (enteros), evitar punto flotante
-      const montoCents         = toCents(montoRaw);
+      const montoCents         = montoRaw === null ? 0 : toCents(montoRaw);
       const saldoPendienteCents = getSaldoPendienteCents();
 
       if (montoCents <= 0) {
@@ -407,11 +437,11 @@
       if (!ordenActual) return;
 
       // Tomar el último pago desde el input actual (el que cubre el saldo)
-      const montoFinalRaw  = parseFloat(document.getElementById('monto-input').value) || 0;
+      const montoFinalRaw  = parseMoneyInput(document.getElementById('monto-input').value);
       const referencia     = document.getElementById('referencia-input').value.trim();
       const saldoPendiente = getSaldoPendienteCents();
 
-      if (montoFinalRaw <= 0) {
+      if (montoFinalRaw === null || montoFinalRaw <= 0) {
         setStatus('cobro-status', 'Ingresa un monto válido'); return;
       }
 
@@ -717,6 +747,16 @@
         }
       });
 
+      const descuentoResumen = getOrdenDiscountSummary(orden, estudios);
+      const descuentoMonto = descuentoResumen.descuento;
+      const subtotalOrden = descuentoResumen.subtotal;
+      const descuentoMotivo = descuentoResumen.motivo;
+      const descuentoHTML = descuentoMonto > 0
+        ? `<tr><td>SUBTOTAL:</td><td>${esc(fmt(subtotalOrden))}</td></tr>
+           <tr><td>DESCUENTO:</td><td>-${esc(fmt(descuentoMonto))}</td></tr>
+           ${descuentoMotivo ? `<tr><td colspan="2" class="t-muted" style="font-size:8pt;">Motivo: ${esc(descuentoMotivo)}</td></tr>` : ''}`
+        : '';
+
       let pagosHTML = '';
       (pagos || []).forEach(p => {
         pagosHTML += `
@@ -746,6 +786,7 @@
         <table class="t-list t-no-break"><tbody>${estudiosHTML}</tbody></table>
         ${linea}
         <table class="t-money t-no-break">
+          ${descuentoHTML}
           <tr class="t-total"><td>TOTAL ORDEN:</td><td>${esc(fmt(orden.total))}</td></tr>
         </table>
         <div class="t-block-title">Pagos</div>

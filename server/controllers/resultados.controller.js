@@ -28,7 +28,8 @@ const uploadResultadoPdf = multer({
 function uploadResultadoPdfMiddleware(req, res, next) {
   uploadResultadoPdf.array('archivos', 20)(req, res, (err) => {
     if (err) {
-      return res.status(400).json({ error: err.message || 'No se pudo procesar el PDF' });
+      err.status = 400;
+      return next(err);
     }
     next();
   });
@@ -305,9 +306,8 @@ async function uploadResultadosToR2(req, res) {
     });
   } catch (err) {
     await Promise.all(uploadedKeys.map(deleteR2ObjectQuietly));
-    console.error('uploadResultadosToR2:', err);
-    const status = err.status || (err.code === 'SQLITE_CONSTRAINT' ? 409 : 500);
-    res.status(status).json({ error: err.message || 'Error al subir resultado a R2' });
+    if (err.code === 'SQLITE_CONSTRAINT' && !err.status) err.status = 409;
+    throw err;
   }
 }
 

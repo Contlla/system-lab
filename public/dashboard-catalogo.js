@@ -219,10 +219,13 @@ function renderCatalogo() {
     tdPrecio.textContent = `$${fmt(e.precio)}`;
 
     const tdTubos = document.createElement('td');
-    tdTubos.innerHTML = `
-      <div style="font-size:12px;font-weight:700;color:var(--text);">${catTubeSummary(e)}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px;">${e.area_proceso || 'Sin area'}</div>
-    `;
+    const tubosMain = document.createElement('div');
+    tubosMain.style.cssText = 'font-size:12px;font-weight:700;color:var(--text);';
+    tubosMain.textContent = catTubeSummary(e);
+    const tubosMeta = document.createElement('div');
+    tubosMeta.style.cssText = 'font-size:11px;color:var(--muted);margin-top:2px;';
+    tubosMeta.textContent = e.area_proceso || 'Sin area';
+    tdTubos.append(tubosMain, tubosMeta);
 
     const tdAcciones = document.createElement('td');
     if (puedeGestionarCatalogo) {

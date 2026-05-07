@@ -9,12 +9,42 @@ function getObjectTemplate() {
   return process.env.NEXT_PUBLIC_R2_OBJECT_TEMPLATE || DEFAULT_OBJECT_TEMPLATE;
 }
 
+function getBackendBaseUrl() {
+  return (
+    process.env.RESULTADOS_API_BASE_URL
+    || process.env.NEXT_PUBLIC_RESULTADOS_API_BASE_URL
+    || ""
+  ).replace(/\/+$/, "");
+}
+
 function buildPdfUrl(id) {
   const r2Url = getR2BaseUrl();
   if (!r2Url) return null;
 
   const objectKey = getObjectTemplate().replace("{id}", encodeURIComponent(id));
   return `${r2Url}/${objectKey.replace(/^\/+/, "")}`;
+}
+
+async function verifyFromBackend(id) {
+  const baseUrl = getBackendBaseUrl();
+  if (!baseUrl) return null;
+
+  const response = await fetch(`${baseUrl}/api/public/resultados/${encodeURIComponent(id)}`, {
+    cache: "no-store",
+  });
+  const data = await response.json().catch(() => ({}));
+
+  if (response.ok && data.exists && data.pdfUrl) {
+    return json({
+      exists: true,
+      id,
+      pdfUrl: data.pdfUrl,
+      source: "backend",
+      contentType: "application/pdf",
+    });
+  }
+
+  return null;
 }
 
 function json(body, init = {}) {
@@ -34,6 +64,11 @@ export async function GET(_request, { params }) {
   if (!RESULT_ID_RE.test(String(id || ""))) {
     return json({ exists: false, error: "ID de resultado invalido" }, { status: 400 });
   }
+
+  try {
+    const backendResult = await verifyFromBackend(id);
+    if (backendResult) return backendResult;
+  } catch {}
 
   const pdfUrl = buildPdfUrl(id);
   if (!pdfUrl) {

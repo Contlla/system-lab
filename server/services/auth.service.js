@@ -1,4 +1,4 @@
-﻿require('dotenv').config();
+require('dotenv').config();
 
 const path     = require('path');
 const fs       = require('fs');
@@ -21,6 +21,7 @@ const {
   buildAuthUser,
   hasPermission,
 } = require('../permissions');
+const { parsePositiveMoney: parseStrictPositiveMoney } = require('../utils/validation');
 
 
 /* =========================
@@ -100,12 +101,12 @@ function parseUserPayload(body = {}, { requirePassword = true } = {}) {
   const permissions = normalizePermissions(body.permissions);
 
   if (!usuario) return { error: 'Usuario requerido' };
-  if (!isValidRole(role)) return { error: `Rol inválido. Válidos: ${ROLES.join(', ')}` };
+  if (!isValidRole(role)) return { error: `Rol invalido. Valid roles: ${ROLES.join(', ')}` };
   if (requirePassword && (!password || password.length < 10)) {
-    return { error: 'Contraseña mínimo 10 caracteres' };
+    return { error: 'Contrasena minimo 10 caracteres' };
   }
   if (!requirePassword && password && password.length < 10) {
-    return { error: 'Contraseña mínimo 10 caracteres' };
+    return { error: 'Contrasena minimo 10 caracteres' };
   }
 
   return {
@@ -149,7 +150,7 @@ function ahoraLocal() {
 
   const now = new Date();
 
-  // Si se definiÃ³ TZ_OFFSET en .env (ej: TZ_OFFSET=-6 para MÃ©xico Centro),
+  // Si se definió TZ_OFFSET en .env (ej: TZ_OFFSET=-6 para México Centro),
   // calculamos manualmente. Si no, usamos la hora local del sistema operativo.
   let fechaRef;
   if (TZ !== null && !isNaN(TZ)) {
@@ -212,8 +213,7 @@ function parsePositiveInt(value) {
 }
 
 function parsePositiveMoney(value) {
-  const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed * 100) / 100 : null;
+  return parseStrictPositiveMoney(value);
 }
 
 async function getSesionCajaActiva(executor = { get }) {
@@ -480,7 +480,7 @@ async function sincronizarEstadoOrdenPorResultados(ordenId) {
 }
 
 /* =========================
-   MULTER â€” storage corregido
+   MULTER — storage corregido
    Usa /tmp primero, luego mueve al destino correcto
 ========================= */
 const RESULTADOS_STORAGE_BASE = resultadoStorage.RESULTADOS_STORAGE_BASE;
@@ -488,7 +488,7 @@ const RESULTADOS_TMP_DIR = resultadoStorage.RESULTADOS_TMP_DIR;
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Guardar temporalmente, se mueve despuÃ©s con los datos del body
+    // Guardar temporalmente, se mueve después con los datos del body
     fs.mkdirSync(RESULTADOS_TMP_DIR, { recursive: true });
     cb(null, RESULTADOS_TMP_DIR);
   },
@@ -508,7 +508,7 @@ const upload = multer({
   limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (MIMES_VALIDOS.includes(file.mimetype)) cb(null, true);
-    else cb(new Error('Tipo de archivo no permitido. Solo PDF e imÃ¡genes.'));
+    else cb(new Error('Tipo de archivo no permitido. Solo PDF e imágenes.'));
   }
 });
 
@@ -520,7 +520,7 @@ const upload = multer({
 const post_login = async (req, res) => {
   try {
     const { usuario, password } = req.body;
-    if (!usuario || !password) return res.status(400).json({ error: 'Usuario y contraseÃ±a son requeridos' });
+    if (!usuario || !password) return res.status(400).json({ error: 'Usuario y contraseña son requeridos' });
 
     const user = await get(`SELECT * FROM usuarios WHERE usuario = ?`, [usuario]);
     if (!user) return res.status(401).json({ error: 'Credenciales incorrectas' });
@@ -531,8 +531,7 @@ const post_login = async (req, res) => {
     const token = signUserToken(user);
     res.json({ token, role: user.role, permissions: resolveUserPermissions(user) });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error en login' });
+    throw err;
   }
 };
 
@@ -541,8 +540,7 @@ const get_bootstrap_status = async (_req, res) => {
     const hasUsers = await existeAlgunUsuario();
     res.json({ needsSetup: !hasUsers });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'No se pudo verificar el estado inicial' });
+    throw err;
   }
 };
 
@@ -554,7 +552,7 @@ const post_bootstrap_admin = async (req, res) => {
       return res.status(400).json({ error: 'Usuario requerido' });
     }
     if (!password || password.length < 10) {
-      return res.status(400).json({ error: 'ContraseÃ±a mÃ­nimo 10 caracteres' });
+      return res.status(400).json({ error: 'Contraseña mínimo 10 caracteres' });
     }
 
     const created = await withTransaction(async (tx) => {
@@ -571,7 +569,7 @@ const post_bootstrap_admin = async (req, res) => {
     });
 
     if (!created) {
-      return res.status(409).json({ error: 'La configuraciÃ³n inicial ya fue completada' });
+      return res.status(409).json({ error: 'La configuración inicial ya fue completada' });
     }
 
     const token = signUserToken(created);
@@ -581,8 +579,7 @@ const post_bootstrap_admin = async (req, res) => {
     if (err.message?.includes('UNIQUE')) {
       return res.status(409).json({ error: 'El nombre de usuario ya existe' });
     }
-    console.error(err);
-    res.status(500).json({ error: 'No se pudo crear el usuario administrador inicial' });
+    throw err;
   }
 };
 
@@ -605,7 +602,7 @@ const get_usuarios = async (req, res) => {
       hasCustomPermissions: Boolean(user.permissions),
     })));
   } catch (err) {
-    console.error(err); res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -627,7 +624,7 @@ const post_usuarios = async (req, res) => {
     });
   } catch (err) {
     if (err.message.includes('UNIQUE')) return res.status(409).json({ error: 'El nombre de usuario ya existe' });
-    console.error(err); res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -662,7 +659,7 @@ const put_usuarios_by_id = async (req, res) => {
     res.json(response);
   } catch (err) {
     if (err.message.includes('UNIQUE')) return res.status(409).json({ error: 'El nombre de usuario ya existe' });
-    console.error(err); res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -675,7 +672,7 @@ const delete_usuarios_by_id = async (req, res) => {
     await run(`DELETE FROM usuarios WHERE id = ?`, [id]);
     res.json({ ok: true });
   } catch (err) {
-    console.error(err); res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 

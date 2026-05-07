@@ -72,6 +72,13 @@
       .replace(/`/g,  '&#96;');
   }
 
+  function parseMoneyInput(value) {
+    const raw = String(value ?? '').trim();
+    if (!/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(raw)) return null;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }
+
   /**
    * ARITMÉTICA SEGURA — Trabaja en centavos (enteros) para evitar
    * errores de punto flotante. p.ej. 10.00 - 9.99 = 0.01 exacto.

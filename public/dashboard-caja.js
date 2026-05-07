@@ -6,7 +6,7 @@
   const CJ_CHART_SRC = '/chart.umd.min.js';
   const CJ_TEMPLATE_SRC = '/dashboard-caja-template.html';
   const CJ_CSS_SRC = '/dashboard-caja.css';
-  const CJ_BUNDLE_SRC = '/dashboard-caja-bundle.js';
+  const CJ_BUNDLE_SRC = '/dashboard-caja-bundle.js?v=discount-flow-20260506';
 
   let cjBootstrapped = false;
   let cjLoadingPromise = null;
@@ -286,8 +286,121 @@
     });
   }
 
+  function cjExtractAtRule(css, atRuleName, predicate = () => true) {
+    const blocks = [];
+    let output = '';
+    let cursor = 0;
+
+    while (cursor < css.length) {
+      const atIndex = css.indexOf(atRuleName, cursor);
+      if (atIndex === -1) {
+        output += css.slice(cursor);
+        break;
+      }
+
+      const openIndex = css.indexOf('{', atIndex);
+      if (openIndex === -1) {
+        output += css.slice(cursor);
+        break;
+      }
+
+      const prelude = css.slice(atIndex, openIndex).trim();
+      let depth = 1;
+      let index = openIndex + 1;
+      while (index < css.length && depth > 0) {
+        if (css[index] === '{') depth += 1;
+        if (css[index] === '}') depth -= 1;
+        index += 1;
+      }
+
+      if (predicate(prelude)) {
+        output += css.slice(cursor, atIndex);
+        blocks.push(css.slice(atIndex, index));
+      } else {
+        output += css.slice(cursor, index);
+      }
+
+      cursor = index;
+    }
+
+    return { css: output, blocks };
+  }
+
+  function cjPrefixSelector(selector) {
+    const trimmed = selector.trim();
+    if (!trimmed) return trimmed;
+    if (trimmed === ':root' || trimmed === 'body') return '#cj-wrapper';
+    if (trimmed === 'html' || trimmed === 'html body') return '#cj-wrapper';
+    if (trimmed === '*') return '#cj-wrapper *';
+    if (trimmed === '*::before' || trimmed === '*::after') return `#cj-wrapper ${trimmed}`;
+    if (trimmed.startsWith('#cj-wrapper')) return trimmed;
+    if (trimmed.startsWith('#ticket-print')) return trimmed;
+    if (trimmed.startsWith('@')) return trimmed;
+    return `#cj-wrapper ${trimmed}`;
+  }
+
+  function cjPrefixCssRules(css) {
+    let output = '';
+    let cursor = 0;
+
+    while (cursor < css.length) {
+      const openIndex = css.indexOf('{', cursor);
+      if (openIndex === -1) {
+        output += css.slice(cursor);
+        break;
+      }
+
+      const prelude = css.slice(cursor, openIndex);
+      let depth = 1;
+      let index = openIndex + 1;
+      while (index < css.length && depth > 0) {
+        if (css[index] === '{') depth += 1;
+        if (css[index] === '}') depth -= 1;
+        index += 1;
+      }
+
+      const body = css.slice(openIndex + 1, index - 1);
+      const trimmedPrelude = prelude.trim();
+
+      if (trimmedPrelude.startsWith('@')) {
+        output += `${prelude}{${cjPrefixCssRules(body)}}`;
+      } else {
+        const prefixedPrelude = prelude
+          .split(',')
+          .map(cjPrefixSelector)
+          .join(', ');
+        output += `${prefixedPrelude}{${body}}`;
+      }
+
+      cursor = index;
+    }
+
+    return output;
+  }
+
   function cjNormalizeShadowCss(css) {
-    return css;
+    const pageExtract = cjExtractAtRule(css, '@page');
+    const printExtract = cjExtractAtRule(
+      pageExtract.css,
+      '@media',
+      (prelude) => /\bprint\b/i.test(prelude)
+    );
+
+    const screenCss = cjPrefixCssRules(printExtract.css);
+    const embeddedReset = `
+      #cj-wrapper {
+        min-height: 0;
+        padding: 0;
+        background: transparent;
+      }
+    `;
+
+    return [
+      screenCss,
+      embeddedReset,
+      ...pageExtract.blocks,
+      ...printExtract.blocks,
+    ].join('\n');
   }
 
   function cjWrapTemplate(template, css) {

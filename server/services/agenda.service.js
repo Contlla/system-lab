@@ -1,4 +1,4 @@
-﻿require('dotenv').config();
+require('dotenv').config();
 
 const path     = require('path');
 const fs       = require('fs');
@@ -21,6 +21,7 @@ const {
   buildAuthUser,
   hasPermission,
 } = require('../permissions');
+const { parsePositiveMoney: parseStrictPositiveMoney } = require('../utils/validation');
 
 
 /* =========================
@@ -100,12 +101,12 @@ function parseUserPayload(body = {}, { requirePassword = true } = {}) {
   const permissions = normalizePermissions(body.permissions);
 
   if (!usuario) return { error: 'Usuario requerido' };
-  if (!isValidRole(role)) return { error: `Rol inválido. Válidos: ${ROLES.join(', ')}` };
+  if (!isValidRole(role)) return { error: `Rol invalido. Valid roles: ${ROLES.join(', ')}` };
   if (requirePassword && (!password || password.length < 10)) {
-    return { error: 'Contraseña mínimo 10 caracteres' };
+    return { error: 'Contrasena minimo 10 caracteres' };
   }
   if (!requirePassword && password && password.length < 10) {
-    return { error: 'Contraseña mínimo 10 caracteres' };
+    return { error: 'Contrasena minimo 10 caracteres' };
   }
 
   return {
@@ -149,7 +150,7 @@ function ahoraLocal() {
 
   const now = new Date();
 
-  // Si se definiÃ³ TZ_OFFSET en .env (ej: TZ_OFFSET=-6 para MÃ©xico Centro),
+  // Si se definió TZ_OFFSET en .env (ej: TZ_OFFSET=-6 para México Centro),
   // calculamos manualmente. Si no, usamos la hora local del sistema operativo.
   let fechaRef;
   if (TZ !== null && !isNaN(TZ)) {
@@ -230,8 +231,7 @@ function parsePositiveInt(value) {
 }
 
 function parsePositiveMoney(value) {
-  const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed * 100) / 100 : null;
+  return parseStrictPositiveMoney(value);
 }
 
 async function getSesionCajaActiva(executor = { get }) {
@@ -498,7 +498,7 @@ async function sincronizarEstadoOrdenPorResultados(ordenId) {
 }
 
 /* =========================
-   MULTER â€” storage corregido
+   MULTER — storage corregido
    Usa /tmp primero, luego mueve al destino correcto
 ========================= */
 const RESULTADOS_STORAGE_BASE = resultadoStorage.RESULTADOS_STORAGE_BASE;
@@ -506,7 +506,7 @@ const RESULTADOS_TMP_DIR = resultadoStorage.RESULTADOS_TMP_DIR;
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Guardar temporalmente, se mueve despuÃ©s con los datos del body
+    // Guardar temporalmente, se mueve después con los datos del body
     fs.mkdirSync(RESULTADOS_TMP_DIR, { recursive: true });
     cb(null, RESULTADOS_TMP_DIR);
   },
@@ -526,7 +526,7 @@ const upload = multer({
   limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (MIMES_VALIDOS.includes(file.mimetype)) cb(null, true);
-    else cb(new Error('Tipo de archivo no permitido. Solo PDF e imÃ¡genes.'));
+    else cb(new Error('Tipo de archivo no permitido. Solo PDF e imágenes.'));
   }
 });
 
@@ -853,7 +853,7 @@ const get_agenda_tecnicos = async (req, res) => {
       : await all(`SELECT * FROM tecnicos WHERE activo = 1 ORDER BY sucursal, nombre`);
     res.json(rows);
   } catch (err) {
-    console.error(err); res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -861,12 +861,12 @@ const post_agenda_tecnicos = async (req, res) => {
   try {
     const { nombre, sucursal } = req.body;
     if (!nombre?.trim()) return res.status(400).json({ error: 'Nombre requerido' });
-    if (!SUCURSALES_VALIDAS.includes(sucursal)) return res.status(400).json({ error: 'Sucursal invÃ¡lida' });
+    if (!SUCURSALES_VALIDAS.includes(sucursal)) return res.status(400).json({ error: 'Sucursal inválida' });
     const r = await run(`INSERT INTO tecnicos (nombre, sucursal) VALUES (?, ?)`, [nombre.trim(), sucursal]);
     const tecnico = await get(`SELECT * FROM tecnicos WHERE id = ?`, [r.lastID]);
     res.status(201).json(tecnico);
   } catch (err) {
-    console.error(err); res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -875,7 +875,7 @@ const delete_agenda_tecnicos_by_id = async (req, res) => {
     await run(`UPDATE tecnicos SET activo = 0 WHERE id = ?`, [req.params.id]);
     res.json({ ok: true });
   } catch (err) {
-    console.error(err); res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -892,7 +892,7 @@ const get_agenda_disponibilidad = async (req, res) => {
       excludeCitaId: exclude_cita_id ? Number(exclude_cita_id) : null,
     }));
   } catch (err) {
-    console.error(err); res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -902,7 +902,7 @@ const get_agenda_citas = async (req, res) => {
     if (!fecha) return res.status(400).json({ error: 'fecha requerida' });
     res.json(await listarCitasAgenda({ fecha, fecha_fin, sucursal, tecnico_id, estado }));
   } catch (err) {
-    console.error(err); res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -910,21 +910,20 @@ const post_agenda_citas = async (req, res) => {
   try {
     res.status(201).json(await crearCitaAgenda(req.body, req.user.usuario));
   } catch (err) {
-    if (err.status) return res.status(err.status).json({ error: err.message });
-    console.error(err); res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
 const patch_agenda_citas_by_id_estado = async (req, res) => {
   try {
     const { estado } = req.body;
-    if (!ESTADOS_CITA.includes(estado)) return res.status(400).json({ error: 'Estado invÃ¡lido' });
+    if (!ESTADOS_CITA.includes(estado)) return res.status(400).json({ error: 'Estado inválido' });
     const cita = await get(`SELECT * FROM citas WHERE id = ?`, [req.params.id]);
     if (!cita) return res.status(404).json({ error: 'Cita no encontrada' });
     await run(`UPDATE citas SET estado = ? WHERE id = ?`, [estado, req.params.id]);
     res.json({ ok: true, id: Number(req.params.id), estado });
   } catch (err) {
-    console.error(err); res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -933,8 +932,7 @@ const put_agenda_citas_by_id = async (req, res) => {
     const id = Number(req.params.id);
     res.json(await actualizarCitaAgenda(id, req.body));
   } catch (err) {
-    if (err.status) return res.status(err.status).json({ error: err.message });
-    console.error(err); res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -945,7 +943,7 @@ const delete_agenda_citas_by_id = async (req, res) => {
     await run(`UPDATE citas SET estado = 'cancelada' WHERE id = ?`, [req.params.id]);
     res.json({ ok: true });
   } catch (err) {
-    console.error(err); res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -960,7 +958,7 @@ const post_agenda_citas_by_id_orden = async (req, res) => {
     const resultado = await crearOrdenDesdeCitaSegura(citaHydratada, { sucursal, medico });
     return res.status(201).json(resultado);
   } catch (err) {
-    console.error(err); res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -974,7 +972,7 @@ const get_agenda_bloqueos = async (req, res) => {
     sql += ` ORDER BY b.hora_inicio`;
     res.json(await all(sql, params));
   } catch (err) {
-    console.error(err); res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -984,14 +982,14 @@ const post_agenda_bloqueos = async (req, res) => {
     if (!sucursal || !fecha || !hora_inicio || !hora_fin)
       return res.status(400).json({ error: 'sucursal, fecha, hora_inicio y hora_fin son requeridos' });
     if (hhmm(hora_inicio) >= hhmm(hora_fin))
-      return res.status(400).json({ error: 'Horario invÃ¡lido' });
+      return res.status(400).json({ error: 'Horario inválido' });
     const r = await run(
       `INSERT INTO agenda_bloqueos (sucursal, tecnico_id, fecha, hora_inicio, hora_fin, motivo) VALUES (?, ?, ?, ?, ?, ?)`,
       [sucursal, tecnico_id || null, fecha, hora_inicio, hora_fin, motivo || null]
     );
     res.status(201).json(await get(`SELECT * FROM agenda_bloqueos WHERE id = ?`, [r.lastID]));
   } catch (err) {
-    console.error(err); res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -1000,7 +998,7 @@ const delete_agenda_bloqueos_by_id = async (req, res) => {
     await run(`DELETE FROM agenda_bloqueos WHERE id = ?`, [req.params.id]);
     res.json({ ok: true });
   } catch (err) {
-    console.error(err); res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 

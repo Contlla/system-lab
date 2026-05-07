@@ -133,8 +133,8 @@ function getCat(n) {
 
 function badge(estado) {
   const m = { pendiente: { c: 'badge-pendiente', t: 'Pendiente' }, en_proceso: { c: 'badge-en_proceso', t: 'En proceso' }, completado: { c: 'badge-completado', t: 'Completado' }, cancelado: { c: 'badge-cancelado', t: 'Cancelado' } };
-  const x = m[estado] || { c: 'badge-pendiente', t: estado };
-  return `<span class="badge ${x.c}">${x.t}</span>`;
+  const x = m[String(estado || '')] || { c: 'badge-pendiente', t: estado };
+  return `<span class="badge ${x.c}">${escapeHTML(x.t)}</span>`;
 }
 
 function escapeHTML(value) {
@@ -575,23 +575,40 @@ function pfCleanPhone(value) {
 }
 
 function pfRender(orden, estudios, emp, fechaEntrega) {
+  emp = emp || {};
+  orden = orden || {};
+  estudios = Array.isArray(estudios) ? estudios : [];
   const empresaNombre = pfCleanText(emp.nombre) || 'Laboratorio Clinico';
   const empresaDireccion = pfCleanText(emp.direccion);
   const empresaRuc = pfCleanText(emp.ruc);
   const empresaRfc = pfCleanText(emp.rfc);
   const empresaTelefono = pfCleanPhone(emp.telefono);
   const empresaCorreo = pfCleanText(emp.correo);
+  const pacienteTelefono = pfCleanPhone(orden.paciente_celular || orden.celular || orden.paciente_telefono);
   const sub = [empresaDireccion, empresaRuc ? 'RUC: ' + empresaRuc : null, empresaRfc ? 'RFC: ' + empresaRfc : null, empresaTelefono ? 'Tel: ' + empresaTelefono : null, empresaCorreo].filter(Boolean).join(' | ');
-  const logoHtml = emp.logo
-    ? `<div class="pf-logo-box" style="padding:0;overflow:hidden;background:white;"><img src="${emp.logo}" alt="Logo empresa" style="width:100%;height:100%;object-fit:cover;display:block;"></div>`
+  const logoSrc = /^data:image\/(jpeg|png|webp|svg\+xml);base64,/.test(String(emp.logo || ''))
+    ? String(emp.logo)
+    : '';
+  const logoHtml = logoSrc
+    ? `<div class="pf-logo-box" style="padding:0;overflow:hidden;background:white;"><img src="${escapeHTML(logoSrc)}" alt="Logo empresa" style="width:100%;height:100%;object-fit:cover;display:block;"></div>`
     : `<div class="pf-logo-box">🧪</div>`;
   // Compatibilidad: se mantiene solo el nuevo encabezado de empresa.
   const filas = estudios.map((e, i) => `
     <tr>
       <td style="width:28px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;">${String(i + 1).padStart(2, '0')}</td>
-      <td><div class="pf-cat-tag">${e.categoria || 'OTROS'}</div><div style="font-weight:600;font-size:13px;">${escapeHTML(e.nombre)}</div></td>
+      <td><div class="pf-cat-tag">${escapeHTML(e.categoria || 'OTROS')}</div><div style="font-weight:600;font-size:13px;">${escapeHTML(e.nombre)}</div></td>
       <td style="text-align:right;font-weight:600;">$${fmt(e.precio)}</td>
     </tr>`).join('');
+  const subtotalEstudios = estudios.reduce((acc, e) => acc + Number(e.precio || 0), 0);
+  const subtotalOrden = Number(orden.subtotal || 0) > 0 ? Number(orden.subtotal) : subtotalEstudios;
+  const descuentoMonto = Number(orden.descuento_monto || 0) ||
+    Math.max(0, Math.round((subtotalOrden - Number(orden.total || 0)) * 100) / 100);
+  const descuentoMotivo = pfCleanText(orden.descuento_motivo);
+  const descuentoRows = descuentoMonto > 0
+    ? `
+          <div class="pf-total-pill pf-discount"><span class="pf-total-key">Descuento</span><span class="pf-total-val">-$${fmt(descuentoMonto)}</span></div>
+          ${descuentoMotivo ? `<div class="pf-discount-reason"><span>Motivo descuento:</span> ${escapeHTML(descuentoMotivo)}</div>` : ''}`
+    : '';
   const entregaVal = fechaEntrega || '';
   const entregaFmt = entregaVal ? (() => {
     const [y, m, d] = entregaVal.split('-');
@@ -599,40 +616,41 @@ function pfRender(orden, estudios, emp, fechaEntrega) {
     return `${parseInt(d)} de ${meses[parseInt(m) - 1]} de ${y}`;
   })() : null;
   const entregaBadge = `
-    <div class="pf-entrega-badge" style="margin-top:10px;padding:8px 12px;background:linear-gradient(135deg,#eafaf1 0%,#d5f5e3 100%);border:1.5px solid #a9dfbf;border-radius:9px;display:${entregaFmt ? 'flex' : 'none'};align-items:center;gap:10px;" id="pf-entrega-badge-block">
-      <span class="pf-eb-icon" style="font-size:18px;">📅</span>
-      <div>
-        <div class="pf-eb-lbl" style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.6px;color:#1e8449;margin-bottom:2px;">Fecha estimada de entrega de resultados</div>
-        <div class="pf-eb-val pf-entrega-badge-txt" style="font-size:13px;font-weight:800;color:#145a32;">${entregaFmt || ''}</div>
+    <div class="pf-entrega-badge" style="display:${entregaFmt ? 'flex' : 'none'};" id="pf-entrega-badge-block">
+      <span class="pf-eb-icon">📅</span>
+      <div class="pf-eb-text">
+        <span class="pf-eb-lbl">Fecha estimada de entrega:</span>
+        <span class="pf-eb-val pf-entrega-badge-txt">${escapeHTML(entregaFmt || '')}</span>
       </div>
     </div>`;
   function buildDoc(copia) {
     return `
-    <div class="pf-copy ${copia ? 'pf-copy-b' : 'pf-copy-a'}">
+    <div class="pf-copy ${copia ? 'pf-copy-b' : 'pf-copy-a'} ${estudios.length >= 5 ? 'pf-compact' : ''}">
       <div class="pf-header">
         <div style="display:flex;align-items:center;gap:12px;">
           ${logoHtml}
-          <div><div class="pf-emp-name">${emp.nombre || 'Mi Laboratorio'}</div><div class="pf-emp-sub">${sub || 'Laboratorio Clínico'}</div></div>
+          <div><div class="pf-emp-name">${escapeHTML(empresaNombre || 'Mi Laboratorio')}</div><div class="pf-emp-sub">${escapeHTML(sub || 'Laboratorio Clínico')}</div></div>
         </div>
         <div style="text-align:right;">
           <div class="pf-doc-title">Orden de Estudios</div>
-          <div class="pf-folio">${orden.folio}</div>
-          <div class="pf-fecha">${fmtDate(orden.fecha)}</div>
+          <div class="pf-folio">${escapeHTML(orden.folio)}</div>
+          <div class="pf-fecha">${escapeHTML(fmtDate(orden.fecha))}</div>
         </div>
       </div>
       <div class="pf-info-grid">
         <div class="pf-info-box">
           <div class="pf-box-title">👤 Paciente</div>
-          <div class="pf-row"><span class="pf-key">Nombre</span><span class="pf-val">${orden.paciente_nombre}</span></div>
-          ${orden.paciente_edad ? `<div class="pf-row"><span class="pf-key">Edad</span><span class="pf-val">${orden.paciente_edad} años</span></div>` : ''}
+          <div class="pf-row"><span class="pf-key">Nombre</span><span class="pf-val">${escapeHTML(orden.paciente_nombre)}</span></div>
+          ${pacienteTelefono ? `<div class="pf-row"><span class="pf-key">Teléfono</span><span class="pf-val">${escapeHTML(pacienteTelefono)}</span></div>` : ''}
+          ${orden.paciente_edad ? `<div class="pf-row"><span class="pf-key">Edad</span><span class="pf-val">${escapeHTML(orden.paciente_edad)} años</span></div>` : ''}
           ${orden.paciente_sexo ? `<div class="pf-row"><span class="pf-key">Sexo</span><span class="pf-val">${orden.paciente_sexo === 'M' ? 'Masculino' : orden.paciente_sexo === 'F' ? 'Femenino' : 'Otro'}</span></div>` : ''}
         </div>
         <div class="pf-info-box">
           <div class="pf-box-title">📋 Orden</div>
-          <div class="pf-row"><span class="pf-key">Folio</span><span class="pf-val" style="font-family:'DM Mono',monospace;font-size:11px;">${orden.folio}</span></div>
-          <div class="pf-row"><span class="pf-key">Sucursal</span><span class="pf-val">${orden.sucursal}</span></div>
-          ${orden.medico ? `<div class="pf-row"><span class="pf-key">Médico</span><span class="pf-val">${orden.medico}</span></div>` : ''}
-          <div class="pf-row"><span class="pf-key">Fecha</span><span class="pf-val">${fmtDate(orden.fecha)}</span></div>
+          <div class="pf-row"><span class="pf-key">Folio</span><span class="pf-val" style="font-family:'DM Mono',monospace;font-size:11px;">${escapeHTML(orden.folio)}</span></div>
+          <div class="pf-row"><span class="pf-key">Sucursal</span><span class="pf-val">${escapeHTML(orden.sucursal)}</span></div>
+          ${orden.medico ? `<div class="pf-row"><span class="pf-key">Médico</span><span class="pf-val">${escapeHTML(orden.medico)}</span></div>` : ''}
+          <div class="pf-row"><span class="pf-key">Fecha</span><span class="pf-val">${escapeHTML(fmtDate(orden.fecha))}</span></div>
         </div>
       </div>
       <div class="pf-table-wrap">
@@ -643,31 +661,35 @@ function pfRender(orden, estudios, emp, fechaEntrega) {
       </div>
       <div class="pf-totales">
         <div class="pf-totales-box">
-          <div class="pf-total-row"><span class="pf-total-key">Subtotal (${estudios.length} estudio${estudios.length !== 1 ? 's' : ''})</span><span class="pf-total-val">$${fmt(orden.total)}</span></div>
-          <div class="pf-total-row pa"><span class="pf-total-key">Pagado</span><span class="pf-total-val">$${fmt(orden.pagado)}</span></div>
-          <div class="pf-total-row sa"><span class="pf-total-key">Saldo</span><span class="pf-total-val">$${fmt(orden.saldo)}</span></div>
-          <div class="pf-total-row hi"><span class="pf-total-key">TOTAL</span><span class="pf-total-val">$${fmt(orden.total)}</span></div>
+          <div class="pf-total-pill"><span class="pf-total-key">Subtotal (${estudios.length})</span><span class="pf-total-val">$${fmt(subtotalOrden)}</span></div>
+          ${descuentoRows}
+          <div class="pf-total-pill pa"><span class="pf-total-key">Pagado</span><span class="pf-total-val">$${fmt(orden.pagado)}</span></div>
+          <div class="pf-total-pill sa"><span class="pf-total-key">Saldo</span><span class="pf-total-val">$${fmt(orden.saldo)}</span></div>
+          <div class="pf-total-pill hi"><span class="pf-total-key">TOTAL</span><span class="pf-total-val">$${fmt(orden.total)}</span></div>
         </div>
       </div>
       ${entregaBadge}
       <div class="pf-footer" style="margin-top:14px;">
-        <div class="pf-footer-note">Conserve este documento para recoger sus resultados.<br>${[empresaNombre, empresaTelefono, empresaCorreo].filter(Boolean).join(' | ')}</div>
+        <div class="pf-footer-note">Conserve este documento para recoger sus resultados.<br>${escapeHTML([empresaNombre, empresaTelefono, empresaCorreo].filter(Boolean).join(' | '))}</div>
         <div><div class="pf-firma-line"></div><div class="pf-firma-label">Firma / Sello del laboratorio</div></div>
       </div>
     </div>`;
   }
   document.getElementById('pf-content').innerHTML = `
     <div class="pf-toolbar" style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">
-      <span style="font-size:13px;font-weight:700;font-family:'DM Mono',monospace;">${orden.folio}</span>
+      <span style="font-size:13px;font-weight:700;font-family:'DM Mono',monospace;">${escapeHTML(orden.folio)}</span>
       <span style="flex:1"></span>
       <button class="btn btn-ghost btn-sm" onclick="pfImprimir()">🖨️ Imprimir / PDF</button>
-      <button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText('${orden.folio}').then(()=>toast('Folio copiado','📋'))">📋 Copiar folio</button>
+      <button class="btn btn-secondary btn-sm" id="pf-copy-folio-btn">📋 Copiar folio</button>
     </div>
     <div id="pf-doc">
       ${buildDoc(false)}
       <hr class="pf-copy-divider">
       ${buildDoc(true)}
     </div>`;
+  document.getElementById('pf-copy-folio-btn')?.addEventListener('click', () => {
+    navigator.clipboard.writeText(String(orden.folio || '')).then(() => toast('Folio copiado', '📋'));
+  });
   return document.getElementById('pf-doc')?.innerHTML || '';
 }
 
@@ -877,10 +899,10 @@ async function agCargarTecnicosGlobal() {
     if (!r.ok) return;
     agTecnicos = await r.json();
     const sel = document.getElementById('ag-tec-sel');
-    sel.innerHTML = '<option value="">Todos los técnicos</option>';
+    sel.replaceChildren(new Option('Todos los técnicos', ''));
     const suc = document.getElementById('ag-suc-sel').value;
     agTecnicos.filter(t => !suc || t.sucursal === suc).forEach(t => {
-      sel.innerHTML += `<option value="${t.id}">${t.nombre} (${t.sucursal})</option>`;
+      sel.appendChild(new Option(`${t.nombre} (${t.sucursal})`, String(t.id)));
     });
   } catch (e) { if (e.isAuth) return; }
 }
@@ -920,9 +942,11 @@ async function agRefresh() {
   // Actualizar técnicos del select según sucursal
   const tecSel = document.getElementById('ag-tec-sel');
   const prevTec = tecSel.value;
-  tecSel.innerHTML = '<option value="">Todos los técnicos</option>';
+  tecSel.replaceChildren(new Option('Todos los técnicos', ''));
   agTecnicos.filter(t => !suc || t.sucursal === suc).forEach(t => {
-    tecSel.innerHTML += `<option value="${t.id}"${t.id == prevTec ? ' selected' : ''}>${t.nombre}</option>`;
+    const option = new Option(t.nombre, String(t.id));
+    option.selected = String(t.id) === String(prevTec);
+    tecSel.appendChild(option);
   });
   document.getElementById('ag-tl-title').textContent = `Agenda — ${suc} — ${agFmtFecha(agFecha)}`;
   try {
@@ -1129,9 +1153,11 @@ function cerrarModalCita() {
 async function mcCargarTecnicos(selId = null) {
   const suc = document.getElementById('mc-sucursal').value;
   const sel = document.getElementById('mc-tecnico');
-  sel.innerHTML = '<option value="">Sin asignar</option>';
+  sel.replaceChildren(new Option('Sin asignar', ''));
   agTecnicos.filter(t => t.sucursal === suc).forEach(t => {
-    sel.innerHTML += `<option value="${t.id}"${t.id == selId ? ' selected' : ''}>${t.nombre}</option>`;
+    const option = new Option(t.nombre, String(t.id));
+    option.selected = String(t.id) === String(selId);
+    sel.appendChild(option);
   });
 }
 
@@ -1425,10 +1451,10 @@ function abrirModalBloqueo() {
   document.getElementById('blq-fin').value = '13:00';
   // Técnicos en bloqueo
   const sel = document.getElementById('blq-tec');
-  sel.innerHTML = '<option value="">Todos</option>';
+  sel.replaceChildren(new Option('Todos', ''));
   const suc = document.getElementById('ag-suc-sel').value;
   agTecnicos.filter(t => t.sucursal === suc).forEach(t => {
-    sel.innerHTML += `<option value="${t.id}">${t.nombre}</option>`;
+    sel.appendChild(new Option(t.nombre, String(t.id)));
   });
   document.getElementById('modal-bloqueo').classList.add('open');
 }
@@ -1755,13 +1781,8 @@ document.getElementById('mc-search-estudios')?.addEventListener('input', functio
     document.getElementById('res-section-completados').style.display = esCarga ? 'none' : '';
     const tabCarga = document.getElementById('res-tab-carga');
     const tabComp = document.getElementById('res-tab-completados');
-    // Usar className en vez de cssText+= para evitar acumulación de estilos
-    tabCarga.style.background = esCarga ? 'white' : 'transparent';
-    tabCarga.style.color = esCarga ? 'var(--text)' : 'var(--muted)';
-    tabCarga.style.boxShadow = esCarga ? 'var(--shadow-sm)' : 'none';
-    tabComp.style.background = !esCarga ? 'white' : 'transparent';
-    tabComp.style.color = !esCarga ? 'var(--green-dark)' : 'var(--muted)';
-    tabComp.style.boxShadow = !esCarga ? 'var(--shadow-sm)' : 'none';
+    tabCarga.classList.toggle('active', esCarga);
+    tabComp.classList.toggle('active', !esCarga);
     if (!esCarga) resCargarCompletados(document.getElementById('res-search-completados').value);
   };
   function resResetSeleccionCarga() {
@@ -2334,7 +2355,15 @@ document.getElementById('mc-search-estudios')?.addEventListener('input', functio
     } catch (err) {
       if (isAbortError(err)) return;
       if (err.isAuth) return;
-      container.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div>Error al cargar: ' + err.message + '</div>';
+      const state = document.createElement('div');
+      state.className = 'empty-state';
+      const icon = document.createElement('div');
+      icon.className = 'icon';
+      icon.textContent = '⚠️';
+      const message = document.createElement('div');
+      message.textContent = `Error al cargar: ${err.message || ''}`;
+      state.append(icon, message);
+      container.replaceChildren(state);
     } finally {
       if (resCompController === controller) resCompController = null;
     }
@@ -2778,13 +2807,14 @@ document.getElementById('mc-search-estudios')?.addEventListener('input', functio
     usrMeta.permissions.forEach((permission) => {
       const label = document.createElement('label');
       label.className = 'usr-perm-option';
-      label.innerHTML = `
-        <input type="checkbox" value="${permission}">
-        <span>${permission}</span>
-      `;
-      const input = label.querySelector('input');
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.value = String(permission);
+      const span = document.createElement('span');
+      span.textContent = String(permission);
       input.checked = selectedSet.has(permission);
       input.addEventListener('change', usrUpdatePermissionHint);
+      label.append(input, span);
       wrap.appendChild(label);
     });
     usrUpdatePermissionHint();
@@ -2880,7 +2910,7 @@ document.getElementById('mc-search-estudios')?.addEventListener('input', functio
       usrMeta = await metaRes.json();
       usrUsuarios = await usersRes.json();
       const roleSelect = usrEl('usr-role');
-      roleSelect.innerHTML = usrMeta.roles.map((role) => `<option value="${role}">${usrRoleLabel(role)}</option>`).join('');
+      roleSelect.replaceChildren(...usrMeta.roles.map((role) => new Option(usrRoleLabel(role), String(role))));
       usrRenderTable();
       if (!usrLoaded || !usrEditandoId) {
         usrResetForm();

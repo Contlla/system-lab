@@ -1,4 +1,4 @@
-﻿require('dotenv').config();
+require('dotenv').config();
 
 const path     = require('path');
 const fs       = require('fs');
@@ -9,7 +9,13 @@ const crypto   = require('crypto');
 
 const { run, get, all, withTransaction } = require('../db');
 const authMiddleware    = require('../middlewares/authMiddleware');
-const { generarRegistroPaciente, crearOrdenSegura } = require('./ordenService');
+const {
+  generarRegistroPaciente,
+  crearOrdenSegura,
+  calcularDescuento,
+  normalizarDescuentoOrden,
+  recalcularTotalesOrden,
+} = require('./ordenService');
 const resultadoStorage = require('../services/resultadoStorageService');
 const {
   ROLES,
@@ -21,6 +27,10 @@ const {
   buildAuthUser,
   hasPermission,
 } = require('../permissions');
+const {
+  parsePositiveMoney: parseStrictPositiveMoney,
+  parseNonNegativeMoney,
+} = require('../utils/validation');
 
 
 /* =========================
@@ -100,12 +110,12 @@ function parseUserPayload(body = {}, { requirePassword = true } = {}) {
   const permissions = normalizePermissions(body.permissions);
 
   if (!usuario) return { error: 'Usuario requerido' };
-  if (!isValidRole(role)) return { error: `Rol inválido. Válidos: ${ROLES.join(', ')}` };
+  if (!isValidRole(role)) return { error: `Rol invalido. Valid roles: ${ROLES.join(', ')}` };
   if (requirePassword && (!password || password.length < 10)) {
-    return { error: 'Contraseña mínimo 10 caracteres' };
+    return { error: 'Contrasena minimo 10 caracteres' };
   }
   if (!requirePassword && password && password.length < 10) {
-    return { error: 'Contraseña mínimo 10 caracteres' };
+    return { error: 'Contrasena minimo 10 caracteres' };
   }
 
   return {
@@ -149,7 +159,7 @@ function ahoraLocal() {
 
   const now = new Date();
 
-  // Si se definiÃ³ TZ_OFFSET en .env (ej: TZ_OFFSET=-6 para MÃ©xico Centro),
+  // Si se definió TZ_OFFSET en .env (ej: TZ_OFFSET=-6 para México Centro),
   // calculamos manualmente. Si no, usamos la hora local del sistema operativo.
   let fechaRef;
   if (TZ !== null && !isNaN(TZ)) {
@@ -193,6 +203,7 @@ const CATEGORIAS_ESTUDIO_VALIDAS = [
   'UROAN\u00c1LISIS',
   'OTROS',
 ];
+const CATEGORIAS_VALIDAS = CATEGORIAS_ESTUDIO_VALIDAS;
 
 const CATEGORIAS_ESTUDIO_POR_CLAVE = Object.freeze(
   CATEGORIAS_ESTUDIO_VALIDAS.reduce((acc, categoria) => {
@@ -212,8 +223,7 @@ function parsePositiveInt(value) {
 }
 
 function parsePositiveMoney(value) {
-  const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed * 100) / 100 : null;
+  return parseStrictPositiveMoney(value);
 }
 
 async function getSesionCajaActiva(executor = { get }) {
@@ -249,6 +259,17 @@ function canonicalizarTexto(value) {
 function normalizarCategoria(categoria) {
   const key = canonicalizarTexto(categoria);
   return CATEGORIAS_ESTUDIO_POR_CLAVE[key] || null;
+}
+
+function normalizarRegistroPaciente(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 64);
 }
 
 function calcularEdadDesdeFecha(fechaNacimiento) {
@@ -480,7 +501,7 @@ async function sincronizarEstadoOrdenPorResultados(ordenId) {
 }
 
 /* =========================
-   MULTER â€” storage corregido
+   MULTER — storage corregido
    Usa /tmp primero, luego mueve al destino correcto
 ========================= */
 const RESULTADOS_STORAGE_BASE = resultadoStorage.RESULTADOS_STORAGE_BASE;
@@ -488,7 +509,7 @@ const RESULTADOS_TMP_DIR = resultadoStorage.RESULTADOS_TMP_DIR;
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Guardar temporalmente, se mueve despuÃ©s con los datos del body
+    // Guardar temporalmente, se mueve después con los datos del body
     fs.mkdirSync(RESULTADOS_TMP_DIR, { recursive: true });
     cb(null, RESULTADOS_TMP_DIR);
   },
@@ -508,7 +529,7 @@ const upload = multer({
   limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (MIMES_VALIDOS.includes(file.mimetype)) cb(null, true);
-    else cb(new Error('Tipo de archivo no permitido. Solo PDF e imÃ¡genes.'));
+    else cb(new Error('Tipo de archivo no permitido. Solo PDF e imágenes.'));
   }
 });
 
@@ -522,8 +543,7 @@ const get_estudios = async (req, res) => {
     const estudios = await all('SELECT * FROM estudios ORDER BY categoria, nombre');
     res.json(estudios);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -546,10 +566,11 @@ const post_estudios = async (req, res) => {
       comparte_tubo
     } = req.body;
     const categoriaNormalizada = normalizarCategoria(categoria);
+    const precioSeguro = parseNonNegativeMoney(precio);
     if (!nombre || !nombre.trim()) return res.status(400).json({ error: 'Nombre requerido' });
-    if (precio === undefined || Number(precio) < 0) return res.status(400).json({ error: 'Precio invÃ¡lido' });
-    if (!categoriaNormalizada) return res.status(400).json({ error: `CategorÃ­a invÃ¡lida. VÃ¡lidas: ${CATEGORIAS_VALIDAS.join(', ')}` });
-    if (tubos_requeridos !== undefined && Number(tubos_requeridos) < 1) return res.status(400).json({ error: 'Cantidad de tubos invÃ¡lida' });
+    if (precioSeguro === null) return res.status(400).json({ error: 'Precio inválido' });
+    if (!categoriaNormalizada) return res.status(400).json({ error: `Categoría inválida. Válidas: ${CATEGORIAS_VALIDAS.join(', ')}` });
+    if (tubos_requeridos !== undefined && Number(tubos_requeridos) < 1) return res.status(400).json({ error: 'Cantidad de tubos inválida' });
 
     const result = await run(
       `INSERT INTO estudios (
@@ -560,7 +581,7 @@ const post_estudios = async (req, res) => {
         clave_externa?.trim() || null,
         nombre.trim(),
         nombre_corto?.trim() || null,
-        Number(precio),
+        precioSeguro,
         categoriaNormalizada,
         subcategoria?.trim() || null,
         sinonimos_busqueda?.trim() || null,
@@ -577,8 +598,7 @@ const post_estudios = async (req, res) => {
     res.status(201).json(estudio);
   } catch (err) {
     if (err.message.includes('UNIQUE')) return res.status(409).json({ error: 'Ya existe un estudio con ese nombre' });
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -602,10 +622,11 @@ const put_estudios_by_id = async (req, res) => {
       comparte_tubo
     } = req.body;
     const categoriaNormalizada = normalizarCategoria(categoria);
+    const precioSeguro = parseNonNegativeMoney(precio);
     if (!nombre || !nombre.trim())               return res.status(400).json({ error: 'Nombre requerido' });
-    if (precio === undefined || Number(precio) < 0) return res.status(400).json({ error: 'Precio invÃ¡lido' });
-    if (!categoriaNormalizada) return res.status(400).json({ error: `CategorÃ­a invÃ¡lida. VÃ¡lidas: ${CATEGORIAS_VALIDAS.join(', ')}` });
-    if (tubos_requeridos !== undefined && Number(tubos_requeridos) < 1) return res.status(400).json({ error: 'Cantidad de tubos invÃ¡lida' });
+    if (precioSeguro === null) return res.status(400).json({ error: 'Precio inválido' });
+    if (!categoriaNormalizada) return res.status(400).json({ error: `Categoría inválida. Válidas: ${CATEGORIAS_VALIDAS.join(', ')}` });
+    if (tubos_requeridos !== undefined && Number(tubos_requeridos) < 1) return res.status(400).json({ error: 'Cantidad de tubos inválida' });
 
     const existe = await get(`SELECT id FROM estudios WHERE id = ?`, [id]);
     if (!existe) return res.status(404).json({ error: 'Estudio no encontrado' });
@@ -620,7 +641,7 @@ const put_estudios_by_id = async (req, res) => {
         clave_externa?.trim() || null,
         nombre.trim(),
         nombre_corto?.trim() || null,
-        Number(precio),
+        precioSeguro,
         categoriaNormalizada,
         subcategoria?.trim() || null,
         sinonimos_busqueda?.trim() || null,
@@ -638,8 +659,7 @@ const put_estudios_by_id = async (req, res) => {
     res.json(estudio);
   } catch (err) {
     if (err.message.includes('UNIQUE')) return res.status(409).json({ error: 'Ya existe un estudio con ese nombre' });
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -652,21 +672,20 @@ const delete_estudios_by_id = async (req, res) => {
     const enUso = await get(`SELECT COUNT(*) as total FROM orden_estudios WHERE estudio_id = ?`, [id]);
     if (enUso.total > 0) {
       return res.status(409).json({
-        error: `No se puede eliminar "${estudio.nombre}" porque estÃ¡ en ${enUso.total} orden(es). Puedes cambiarle el nombre si ya no lo usas.`
+        error: `No se puede eliminar "${estudio.nombre}" porque está en ${enUso.total} orden(es). Puedes cambiarle el nombre si ya no lo usas.`
       });
     }
 
     await run(`DELETE FROM estudios WHERE id = ?`, [id]);
     res.json({ ok: true, eliminado: estudio.nombre });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
 const post_orden = async (req, res) => {
   try {
-    const { nombre, celular, fecha_nacimiento, sexo, sucursal, medico, medico_telefono, estudios } = req.body;
+    const { nombre, celular, fecha_nacimiento, sexo, sucursal, medico, medico_telefono, estudios, descuento } = req.body;
     const edad = calcularEdadDesdeFecha(fecha_nacimiento);
 
     if (!nombre || !fecha_nacimiento || !sexo || !sucursal) {
@@ -678,11 +697,39 @@ const post_orden = async (req, res) => {
     if (!Array.isArray(estudios) || estudios.length === 0) {
       return res.status(400).json({ error: 'Debe seleccionar al menos un estudio' });
     }
-    const resultado = await crearOrdenSegura({ nombre, celular, fecha_nacimiento, edad, sexo, sucursal, medico, medico_telefono, estudios });
+    if (descuento && !hasPermission(req.user, 'ordenes.discount')) {
+      const rows = await all(
+        `SELECT precio FROM estudios WHERE id IN (${estudios.map(() => '?').join(',')})`,
+        estudios
+      );
+      const subtotal = rows.reduce((sum, item) => sum + Number(item.precio || 0), 0);
+      const descuentoSolicitado = calcularDescuento(
+        subtotal,
+        descuento.tipo || descuento.descuento_tipo,
+        descuento.valor ?? descuento.descuento_valor
+      );
+      if (descuentoSolicitado.monto > 0) {
+        return res.status(403).json({ error: 'No autorizado para aplicar descuentos' });
+      }
+    }
+
+    const resultado = await crearOrdenSegura({
+      nombre,
+      celular,
+      fecha_nacimiento,
+      edad,
+      sexo,
+      sucursal,
+      medico,
+      medico_telefono,
+      estudios,
+      descuento,
+      descuento_usuario_id: req.user?.id || null,
+      descuento_usuario: req.user?.usuario || null,
+    });
     return res.status(201).json(resultado);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -721,8 +768,7 @@ const get_orden_by_folio_etiquetas = async (req, res) => {
     const empresa = await get(`SELECT * FROM empresa WHERE id = 1`);
     res.json({ orden, etiquetas, empresa: empresa || {} });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -743,8 +789,87 @@ const post_orden_by_folio_etiquetas_registrar_impresion = async (req, res) => {
 
     res.json({ ok: true });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
+  }
+};
+
+const get_orden_by_folio_detalle = async (req, res) => {
+  try {
+    const { folio } = req.params;
+    if (!folio) return res.status(400).json({ error: 'Folio requerido' });
+
+    const orden = await get(`
+      SELECT o.*, p.nombre AS paciente_nombre,
+             p.celular AS paciente_celular, p.fecha_nacimiento AS paciente_fecha_nacimiento,
+             p.edad AS paciente_edad, p.sexo AS paciente_sexo, p.registro AS paciente_registro
+      FROM ordenes o
+      JOIN pacientes p ON p.id = o.paciente_id
+      WHERE o.folio = ?
+    `, [folio]);
+
+    if (!orden) return res.status(404).json({ error: 'Orden no encontrada' });
+
+    const estudios = await all(`
+      SELECT oe.id AS orden_estudio_id, oe.precio, e.id AS estudio_id, e.nombre, e.indicaciones
+      FROM orden_estudios oe
+      JOIN estudios e ON e.id = oe.estudio_id
+      WHERE oe.orden_id = ?
+      ORDER BY e.nombre ASC
+    `, [orden.id]);
+
+    const pagos = await all(`
+      SELECT *
+      FROM pagos
+      WHERE orden_id = ?
+      ORDER BY id ASC
+    `, [orden.id]);
+
+    let etiquetas = await all(`
+      SELECT *
+      FROM orden_tubos
+      WHERE orden_id = ?
+      ORDER BY id ASC
+    `, [orden.id]);
+
+    if (!etiquetas.length && estudios.length) {
+      etiquetas = await regenerarEtiquetasOrden(orden.id);
+    }
+
+    const impresas = etiquetas.filter((item) => Number(item.impreso) === 1);
+    const ultimaImpresion = etiquetas
+      .map((item) => item.impreso_en)
+      .filter(Boolean)
+      .sort()
+      .pop() || null;
+    const totalReimpresiones = etiquetas.reduce((sum, item) => sum + Number(item.reimpresiones || 0), 0);
+    const tubos = etiquetas.map((item) => ({
+      etiqueta_uid: item.etiqueta_uid,
+      tipo_muestra: item.tipo_muestra,
+      tipo_tubo: item.tipo_tubo,
+      color_tapa: item.color_tapa,
+      area_proceso: item.area_proceso,
+      estudios_resumen: item.estudios_resumen,
+      indice_tubo: item.indice_tubo,
+      total_tubos_grupo: item.total_tubos_grupo,
+      impreso: item.impreso,
+      impreso_en: item.impreso_en,
+      reimpresiones: item.reimpresiones,
+    }));
+
+    res.json({
+      orden,
+      estudios,
+      pagos,
+      etiquetasResumen: {
+        total: etiquetas.length,
+        impresas: impresas.length,
+        ultima_impresion: ultimaImpresion,
+        reimpresiones: totalReimpresiones,
+        tubos,
+      },
+    });
+  } catch (err) {
+    throw err;
   }
 };
 
@@ -773,8 +898,7 @@ const get_orden_by_folio = async (req, res) => {
 
     res.json({ orden, estudios });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -792,8 +916,7 @@ const patch_orden_by_folio_estado = async (req, res) => {
     const actualizada = await get(`SELECT * FROM ordenes WHERE folio = ?`, [folio]);
     res.json(actualizada);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -803,50 +926,124 @@ const post_orden_by_folio_estudios = async (req, res) => {
     const { estudios } = req.body;
     if (!Array.isArray(estudios) || estudios.length === 0) return res.status(400).json({ error: 'Debe enviar al menos un estudio' });
 
-    const orden = await get(`SELECT * FROM ordenes WHERE folio = ?`, [folio]);
-    if (!orden) return res.status(404).json({ error: 'Orden no encontrada' });
-    if (orden.estado === 'completado' || orden.estado === 'cancelado') return res.status(400).json({ error: 'No se pueden modificar estudios de una orden finalizada' });
+    const resultado = await withTransaction(async (tx) => {
+      const orden = await tx.get(`SELECT * FROM ordenes WHERE folio = ?`, [folio]);
+      if (!orden) {
+        const error = new Error('Orden no encontrada');
+        error.status = 404;
+        throw error;
+      }
+      if (orden.estado === 'completado' || orden.estado === 'cancelado') {
+        const error = new Error('No se pueden modificar estudios de una orden finalizada');
+        error.status = 400;
+        throw error;
+      }
+      if (Number(orden.pagado || 0) > 0) {
+        const error = new Error('No se pueden modificar estudios con pagos registrados');
+        error.status = 409;
+        throw error;
+      }
 
-    let extra = 0;
-    for (const estudioId of estudios) {
-      const estudio = await get(`SELECT * FROM estudios WHERE id = ?`, [estudioId]);
-      if (!estudio) continue;
-      const existe = await get(`SELECT id FROM orden_estudios WHERE orden_id = ? AND estudio_id = ?`, [orden.id, estudioId]);
-      if (existe) continue;
-      extra += estudio.precio;
-      await run(`INSERT INTO orden_estudios (orden_id, estudio_id, precio) VALUES (?, ?, ?)`, [orden.id, estudioId, estudio.precio]);
-    }
+      let extra = 0;
+      for (const estudioId of estudios) {
+        const estudio = await tx.get(`SELECT * FROM estudios WHERE id = ?`, [estudioId]);
+        if (!estudio) continue;
+        const existe = await tx.get(`SELECT id FROM orden_estudios WHERE orden_id = ? AND estudio_id = ?`, [orden.id, estudioId]);
+        if (existe) continue;
+        extra += Number(estudio.precio || 0);
+        await tx.run(`INSERT INTO orden_estudios (orden_id, estudio_id, precio) VALUES (?, ?, ?)`, [orden.id, estudioId, estudio.precio]);
+      }
+      const ordenActualizada = await recalcularTotalesOrden(orden.id, tx);
+      const etiquetas = await regenerarEtiquetasOrden(orden.id, tx);
+      return { ok: true, extra, nuevoTotal: ordenActualizada.total, orden: ordenActualizada, etiquetas };
+    });
 
-      const nuevoTotal = orden.total + extra;
-      const nuevoSaldo = orden.saldo + extra;
-      await run(`UPDATE ordenes SET total = ?, saldo = ? WHERE id = ?`, [nuevoTotal, nuevoSaldo, orden.id]);
-      const etiquetas = await regenerarEtiquetasOrden(orden.id);
-      res.json({ ok: true, extra, nuevoTotal, etiquetas });
+    res.json(resultado);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
 const delete_orden_by_folio_estudio_by_estudioId = async (req, res) => {
   try {
     const { folio, estudioId } = req.params;
+
+    const resultado = await withTransaction(async (tx) => {
+      const orden = await tx.get(`SELECT * FROM ordenes WHERE folio = ?`, [folio]);
+      if (!orden) {
+        const error = new Error('Orden no encontrada');
+        error.status = 404;
+        throw error;
+      }
+      if (orden.estado === 'completado' || orden.estado === 'cancelado') {
+        const error = new Error('No se pueden modificar estudios de una orden finalizada');
+        error.status = 400;
+        throw error;
+      }
+      if (Number(orden.pagado || 0) > 0) {
+        const error = new Error('No se pueden modificar estudios con pagos registrados');
+        error.status = 409;
+        throw error;
+      }
+
+      const oe = await tx.get(`SELECT * FROM orden_estudios WHERE orden_id = ? AND estudio_id = ?`, [orden.id, estudioId]);
+      if (!oe) {
+        const error = new Error('Estudio no encontrado en la orden');
+        error.status = 404;
+        throw error;
+      }
+
+      await tx.run(`DELETE FROM orden_estudios WHERE orden_id = ? AND estudio_id = ?`, [orden.id, estudioId]);
+      const ordenActualizada = await recalcularTotalesOrden(orden.id, tx);
+      const etiquetas = await regenerarEtiquetasOrden(orden.id, tx);
+      return { ok: true, nuevoTotal: ordenActualizada.total, orden: ordenActualizada, etiquetas };
+    });
+
+    res.json(resultado);
+  } catch (err) {
+    throw err;
+  }
+};
+
+const patch_orden_by_folio_descuento = async (req, res) => {
+  try {
+    const { folio } = req.params;
     const orden = await get(`SELECT * FROM ordenes WHERE folio = ?`, [folio]);
     if (!orden) return res.status(404).json({ error: 'Orden no encontrada' });
-    if (orden.estado === 'completado' || orden.estado === 'cancelado') return res.status(400).json({ error: 'No se pueden modificar estudios de una orden finalizada' });
+    if (orden.estado === 'completado' || orden.estado === 'cancelado') {
+      return res.status(400).json({ error: 'No se puede modificar el descuento de una orden finalizada' });
+    }
+    if (Number(orden.pagado || 0) > 0) {
+      return res.status(409).json({ error: 'No se puede modificar descuento con pagos registrados' });
+    }
 
-    const oe = await get(`SELECT * FROM orden_estudios WHERE orden_id = ? AND estudio_id = ?`, [orden.id, estudioId]);
-    if (!oe) return res.status(404).json({ error: 'Estudio no encontrado en la orden' });
+    const subtotalRow = await get(
+      `SELECT COALESCE(SUM(precio), 0) AS subtotal FROM orden_estudios WHERE orden_id = ?`,
+      [orden.id]
+    );
+    const descuento = normalizarDescuentoOrden(req.body || {}, Number(subtotalRow?.subtotal || 0));
 
-      await run(`DELETE FROM orden_estudios WHERE orden_id = ? AND estudio_id = ?`, [orden.id, estudioId]);
-      const nuevoTotal = Math.max(0, orden.total - oe.precio);
-      const nuevoSaldo = Math.max(0, orden.saldo - oe.precio);
-      await run(`UPDATE ordenes SET total = ?, saldo = ? WHERE id = ?`, [nuevoTotal, nuevoSaldo, orden.id]);
-      const etiquetas = await regenerarEtiquetasOrden(orden.id);
-      res.json({ ok: true, nuevoTotal, etiquetas });
+    await run(
+      `UPDATE ordenes
+         SET descuento_tipo = ?, descuento_valor = ?, descuento_monto = ?,
+             descuento_motivo = ?, descuento_usuario_id = ?, descuento_usuario = ?, descuento_fecha = ?
+       WHERE id = ?`,
+      [
+        descuento.tipo,
+        descuento.valor,
+        descuento.monto,
+        descuento.motivo,
+        descuento.tipo === 'ninguno' ? null : req.user?.id || null,
+        descuento.tipo === 'ninguno' ? null : req.user?.usuario || null,
+        descuento.tipo === 'ninguno' ? null : ahoraLocal(),
+        orden.id,
+      ]
+    );
+
+    const ordenActualizada = await recalcularTotalesOrden(orden.id);
+    res.json({ ok: true, orden: ordenActualizada });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -855,8 +1052,7 @@ const get_empresa = async (req, res) => {
     const empresa = await get(`SELECT * FROM empresa WHERE id = 1`);
     res.json(empresa || {});
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -898,8 +1094,7 @@ const put_empresa = async (req, res) => {
     const updated = await get(`SELECT * FROM empresa WHERE id = 1`);
     res.json(updated);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -958,8 +1153,7 @@ const get_ordenes_buscar = async (req, res) => {
 
     res.json({ total: countRow.total, ordenes, limit, offset });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -978,8 +1172,7 @@ const get_dashboard = async (req, res) => {
     `);
     res.json({ ordenesHoy: ordenesHoy?.total??0, ingresos: ingresos?.total??0, pacientes: pacientes?.total??0, completadosHoy: completadosHoy?.total??0, saldoPorCobrar: saldoPorCobrar?.total??0, ultimasOrdenes });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -1010,8 +1203,7 @@ const get_pacientes = async (req, res) => {
     `, [...params, limit, offset]);
     res.json({ pacientes, total: total.total });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -1047,8 +1239,8 @@ const post_pacientes = async (req, res) => {
     `, [result.lastID]);
     res.status(201).json(paciente);
   } catch (err) {
-    if (err.message.includes('UNIQUE')) return res.status(409).json({ error: 'El nÃºmero de registro ya existe' });
-    console.error(err); res.status(500).json({ error: err.message });
+    if (err.message.includes('UNIQUE')) return res.status(409).json({ error: 'El número de registro ya existe' });
+    throw err;
   }
 };
 
@@ -1057,7 +1249,7 @@ const get_pacientes_siguiente_registro = async (_req, res) => {
     const registro = await generarRegistroPaciente();
     res.json({ registro });
   } catch (err) {
-    console.error(err); res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -1083,15 +1275,15 @@ const put_pacientes_by_id = async (req, res) => {
     await run(`
       UPDATE pacientes SET registro=?,nombre=?,celular=?,correo=?,direccion=?,observaciones=?,fecha_nacimiento=?,edad=?,sexo=?,updated_at=?
       WHERE id=?
-    `, [registro||null,nombre.trim(),celular||null,correo||null,direccion||null,observaciones||null,fecha_nacimiento||null,edadCalculada,sexo,ahoraLocal(),id]);
+    `, [normalizarRegistroPaciente(registro)||null,nombre.trim(),celular||null,correo||null,direccion||null,observaciones||null,fecha_nacimiento||null,edadCalculada,sexo,ahoraLocal(),id]);
     const paciente = await get(`
       SELECT id, registro, nombre, celular, correo, direccion, observaciones, fecha_nacimiento, edad, sexo, activo, created_at, updated_at
       FROM pacientes WHERE id = ?
     `, [id]);
     res.json(paciente);
   } catch (err) {
-    if (err.message.includes('UNIQUE')) return res.status(409).json({ error: 'El nÃºmero de registro ya existe' });
-    console.error(err); res.status(500).json({ error: err.message });
+    if (err.message.includes('UNIQUE')) return res.status(409).json({ error: 'El número de registro ya existe' });
+    throw err;
   }
 };
 
@@ -1105,7 +1297,7 @@ const delete_pacientes_by_id = async (req, res) => {
     await run(`DELETE FROM pacientes WHERE id = ?`, [req.params.id]);
     res.json({ ok: true, deleted: true });
   } catch (err) {
-    console.error(err); res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -1151,7 +1343,7 @@ const get_pacientes_by_id_detalle = async (req, res) => {
     `, [id]);
     res.json({ paciente, resumen, ordenes, citas, pagos });
   } catch (err) {
-    console.error(err); res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -1163,8 +1355,10 @@ module.exports = {
   post_orden,
   get_orden_by_folio_etiquetas,
   post_orden_by_folio_etiquetas_registrar_impresion,
+  get_orden_by_folio_detalle,
   get_orden_by_folio,
   patch_orden_by_folio_estado,
+  patch_orden_by_folio_descuento,
   post_orden_by_folio_estudios,
   delete_orden_by_folio_estudio_by_estudioId,
   get_empresa,

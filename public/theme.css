@@ -1,0 +1,355 @@
+/*
+  VICA shared visual theme.
+  Keep this file focused on tokens and base component normalization.
+*/
+:root {
+  --green: #74b74a;
+  --green-dark: #5d993a;
+  --green-bg: #edf8e8;
+  --red: #e74c3c;
+  --red-dark: #c0392b;
+  --red-bg: #fdedec;
+  --blue: #009cda;
+  --blue-dark: #007eb0;
+  --blue-bg: #e8f7fd;
+  --yellow: #f39c12;
+  --yellow-bg: #fef9e7;
+  --purple: #9b59b6;
+  --purple-bg: #f5eef8;
+  --sidebar-bg: #15364a;
+  --bg: #f3faf5;
+  --surface: #ffffff;
+  --surface-soft: #f8fafc;
+  --border: #d7e8ef;
+  --text: #15364a;
+  --muted: #5f747d;
+  --placeholder: #a0aec0;
+  --shadow: 0 10px 28px rgba(21, 54, 74, 0.08);
+  --shadow-sm: 0 2px 10px rgba(21, 54, 74, 0.06);
+  --focus-ring: 0 0 0 3px rgba(0, 156, 218, 0.13);
+  --radius: 10px;
+  --radius-sm: 8px;
+  --radius-xs: 6px;
+  --radius-pill: 999px;
+  --font-ui: 'Plus Jakarta Sans', Arial, sans-serif;
+  --font-mono: 'DM Mono', 'Courier New', monospace;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--font-ui);
+}
+
+input,
+select,
+textarea {
+  color: var(--text);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--placeholder);
+}
+
+.card,
+.metric-card,
+.dash-table-wrap,
+.stats-card,
+.search-panel,
+.summary,
+.discount-panel,
+.modal,
+.modal-card,
+.emp-preview-card,
+.bq-card,
+.cj-card {
+  border-radius: var(--radius);
+}
+
+.btn,
+button.btn,
+.field-input,
+.search-input,
+.bq-input,
+.emp-input,
+.stats-field input,
+.stats-field select {
+  border-radius: var(--radius-sm);
+}
+
+.badge,
+.usr-role-pill,
+.usr-perm-tag,
+.cat-btn,
+.estado-badge,
+.ag-pill,
+.res-badge,
+.cj-pill {
+  border-radius: var(--radius-pill);
+}
+
+.mono,
+.val-mono,
+.p-folio,
+.inf-folio,
+.pf-folio,
+.stats-rank,
+.stats-money,
+.usr-perm-code {
+  font-family: var(--font-mono);
+}
+
+.btn-primary {
+  background: var(--blue);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--blue-dark);
+}
+
+.btn-secondary {
+  background: var(--green);
+  color: #fff;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--green-dark);
+}
+
+.btn-ghost {
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.btn:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.u-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.u-actions-center {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.u-actions-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.u-muted-label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.u-helper-text {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 6px;
+}
+
+.u-note-text {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 10px 0 12px;
+}
+
+.u-empty-row {
+  color: var(--muted);
+  padding: 24px;
+  text-align: center;
+}
+
+.u-color-blue {
+  color: var(--blue) !important;
+}
+
+.u-color-green {
+  color: var(--green) !important;
+}
+
+.u-color-green-dark {
+  color: var(--green-dark) !important;
+}
+
+.u-color-muted {
+  color: var(--muted) !important;
+}
+
+.u-color-red {
+  color: var(--red) !important;
+}
+
+.u-mb-16 {
+  margin-bottom: 16px !important;
+}
+
+.u-mt-8 {
+  margin-top: 8px !important;
+}
+
+.u-self-center {
+  align-self: center;
+}
+
+.u-min-empty {
+  min-height: 220px;
+}
+
+.u-no-frame {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.u-chip {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 6px;
+  padding: 7px 12px;
+}
+
+.u-chip-soft-green {
+  background: var(--green-bg);
+  border-color: #d1eac4;
+  color: var(--green-dark);
+}
+
+.u-chip-soft-blue {
+  background: var(--blue-bg);
+  border-color: #bfe9f8;
+  color: #1f618d;
+}
+
+.u-success-action {
+  background: var(--green-dark) !important;
+}
+
+.section-body-compact {
+  padding-bottom: 8px !important;
+}
+
+.result-progress {
+  border-bottom: 1px solid var(--border);
+  padding: 12px 18px;
+}
+
+.result-study-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+}
+
+.result-sticky-actions {
+  align-items: center;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  bottom: 0;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 14px 18px;
+  position: sticky;
+}
+
+.result-save-summary {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.segmented-control {
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  padding: 4px;
+  width: fit-content;
+}
+
+.segmented-btn {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 6px;
+  padding: 7px 16px;
+}
+
+.segmented-btn.active {
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  color: var(--text);
+}
+
+.ag-date-input {
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  padding: 8px 10px;
+}
+
+.field-input-compact {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 12px;
+}
+
+.usr-permissions-grid {
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  max-height: 280px;
+  overflow: auto;
+  padding: 10px;
+}
+
+@media print {
+  .btn:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    box-shadow: none;
+  }
+}

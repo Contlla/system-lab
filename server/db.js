@@ -3,10 +3,13 @@ require('dotenv').config();
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt  = require('bcrypt');
 const path    = require('path');
+const crypto  = require('crypto');
+const QRCode  = require('qrcode');
 const seedEstudios = require('./seed-estudios');
 
 const DB_PATH    = process.env.DB_PATH || path.resolve(__dirname, '../database/lab.db');
 const SALT_ROUNDS = 10;
+const RESULTADO_VIEWER_BASE_URL = process.env.RESULTADO_VIEWER_BASE_URL || 'https://system-lab-mu.vercel.app/resultado/';
 
 const db = new sqlite3.Database(DB_PATH, (err) => {
   if (err) {
@@ -153,6 +156,60 @@ function normalizeSeedCategoria(value) {
   return SEED_CATEGORIA_MAP[String(value || '').trim().toUpperCase()] || 'GENERAL';
 }
 
+function buildResultadoViewerUrl(uuid) {
+  return `${RESULTADO_VIEWER_BASE_URL.replace(/\/+$/, '')}/${encodeURIComponent(uuid)}`;
+}
+
+async function generateUniqueResultadoUuid() {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const uuid = crypto.randomUUID();
+    const existing = await get(`SELECT id FROM resultado_archivos WHERE resultado_uuid = ? LIMIT 1`, [uuid]);
+    if (!existing) return uuid;
+  }
+  throw new Error('No se pudo generar un UUID unico para resultado_archivos');
+}
+
+async function backfillResultadoArchivosPublicVerification(retries = 5) {
+  try {
+    const rows = await all(`
+      SELECT id, resultado_uuid, qr_base64
+      FROM resultado_archivos
+      WHERE resultado_uuid IS NULL OR TRIM(resultado_uuid) = ''
+         OR qr_base64 IS NULL OR TRIM(qr_base64) = ''
+      ORDER BY id ASC
+    `);
+
+    for (const row of rows) {
+      const uuid = String(row.resultado_uuid || '').trim() || await generateUniqueResultadoUuid();
+      const qrBase64 = String(row.qr_base64 || '').trim()
+        || await QRCode.toDataURL(buildResultadoViewerUrl(uuid), { errorCorrectionLevel: 'M', margin: 1, width: 512 });
+
+      await run(`
+        UPDATE resultado_archivos
+        SET resultado_uuid = CASE
+              WHEN resultado_uuid IS NULL OR TRIM(resultado_uuid) = '' THEN ?
+              ELSE resultado_uuid
+            END,
+            qr_base64 = CASE
+              WHEN qr_base64 IS NULL OR TRIM(qr_base64) = '' THEN ?
+              ELSE qr_base64
+            END
+        WHERE id = ?
+      `, [uuid, qrBase64, row.id]);
+    }
+
+    if (rows.length) {
+      console.log(`Backfill resultado_archivos: ${rows.length} registros con verificacion publica.`);
+    }
+  } catch (err) {
+    if (retries > 0 && /no such table|database is locked/i.test(err.message || '')) {
+      setTimeout(() => backfillResultadoArchivosPublicVerification(retries - 1), 1000);
+      return;
+    }
+    console.error(`Error en migracion (resultado_archivos_public_backfill): ${err.message}`);
+  }
+}
+
 function migrateResultadoArchivosTable() {
   db.all(`PRAGMA table_info(resultado_archivos)`, (err, columns = []) => {
     if (err) {
@@ -170,8 +227,21 @@ function migrateResultadoArchivosTable() {
         return;
       }
 
-      const hasUniqueIndex = indexes.some((index) => Number(index.unique) === 1);
-      if (!estudioNotNull && !hasUniqueIndex) return;
+      const expectedUniqueIndexes = new Set([
+        'idx_resultado_archivos_uuid',
+        'idx_resultado_archivos_principal_estudio',
+        'idx_resultado_archivos_principal_orden',
+      ]);
+      const hasLegacyUniqueIndex = indexes.some((index) => (
+        Number(index.unique) === 1 && !expectedUniqueIndexes.has(index.name)
+      ));
+      if (!estudioNotNull && !hasLegacyUniqueIndex) return;
+
+      const hasColumn = (name) => columns.some((column) => column.name === name);
+      const selectOrNull = (name) => hasColumn(name) ? name : 'NULL';
+      const selectDocumentoTipo = hasColumn('documento_tipo')
+        ? `COALESCE(NULLIF(TRIM(documento_tipo), ''), 'principal')`
+        : `'principal'`;
 
       db.serialize(() => {
         db.run(`ALTER TABLE resultado_archivos RENAME TO resultado_archivos_old`, (renameErr) => {
@@ -206,11 +276,16 @@ function migrateResultadoArchivosTable() {
             db.run(`
               INSERT INTO resultado_archivos (
                 id, orden_id, estudio_id, archivo_url, archivo_path, archivo_nombre,
-                resultado_uuid, r2_key, r2_url, qr_base64, fecha
+                resultado_uuid, r2_key, r2_url, qr_base64, documento_tipo, fecha
               )
               SELECT
                 id, orden_id, estudio_id, archivo_url, archivo_path, archivo_nombre,
-                NULL, NULL, NULL, NULL, fecha
+                ${selectOrNull('resultado_uuid')},
+                ${selectOrNull('r2_key')},
+                ${selectOrNull('r2_url')},
+                ${selectOrNull('qr_base64')},
+                ${selectDocumentoTipo},
+                fecha
               FROM resultado_archivos_old
             `, (copyErr) => {
               if (copyErr) {
@@ -378,6 +453,15 @@ db.serialize(async () => {
       paciente_id      INTEGER NOT NULL,
       medico           TEXT,
       medico_telefono  TEXT,
+      subtotal         REAL    NOT NULL DEFAULT 0,
+      descuento_tipo   TEXT    NOT NULL DEFAULT 'ninguno'
+                               CHECK(descuento_tipo IN ('ninguno', 'porcentaje', 'monto')),
+      descuento_valor  REAL    NOT NULL DEFAULT 0,
+      descuento_monto  REAL    NOT NULL DEFAULT 0,
+      descuento_motivo TEXT,
+      descuento_usuario_id INTEGER,
+      descuento_usuario TEXT,
+      descuento_fecha  TEXT,
       total            REAL    NOT NULL DEFAULT 0,
       pagado           REAL    NOT NULL DEFAULT 0,
       saldo            REAL    NOT NULL DEFAULT 0,
@@ -406,6 +490,15 @@ db.serialize(async () => {
     `ALTER TABLE ordenes ADD COLUMN estado_pago TEXT NOT NULL DEFAULT 'pendiente'`,
     'ordenes_add_estado_pago'
   );
+  migrateColumn(`ALTER TABLE ordenes ADD COLUMN subtotal REAL NOT NULL DEFAULT 0`, 'ordenes_add_subtotal');
+  migrateColumn(`ALTER TABLE ordenes ADD COLUMN descuento_tipo TEXT NOT NULL DEFAULT 'ninguno'`, 'ordenes_add_descuento_tipo');
+  migrateColumn(`ALTER TABLE ordenes ADD COLUMN descuento_valor REAL NOT NULL DEFAULT 0`, 'ordenes_add_descuento_valor');
+  migrateColumn(`ALTER TABLE ordenes ADD COLUMN descuento_monto REAL NOT NULL DEFAULT 0`, 'ordenes_add_descuento_monto');
+  migrateColumn(`ALTER TABLE ordenes ADD COLUMN descuento_motivo TEXT`, 'ordenes_add_descuento_motivo');
+  migrateColumn(`ALTER TABLE ordenes ADD COLUMN descuento_usuario_id INTEGER`, 'ordenes_add_descuento_usuario_id');
+  migrateColumn(`ALTER TABLE ordenes ADD COLUMN descuento_usuario TEXT`, 'ordenes_add_descuento_usuario');
+  migrateColumn(`ALTER TABLE ordenes ADD COLUMN descuento_fecha TEXT`, 'ordenes_add_descuento_fecha');
+  ddl(`UPDATE ordenes SET subtotal = total WHERE COALESCE(subtotal, 0) = 0 AND total > 0`, 'ordenes_backfill_subtotal');
 
   ddl(`CREATE INDEX IF NOT EXISTS idx_ordenes_folio    ON ordenes(folio)`,       'idx_ordenes_folio');
   ddl(`CREATE INDEX IF NOT EXISTS idx_ordenes_fecha    ON ordenes(fecha)`,       'idx_ordenes_fecha');
@@ -1387,6 +1480,8 @@ db.serialize(async () => {
   }
 
 });
+
+setTimeout(backfillResultadoArchivosPublicVerification, 1500);
 
 /* =========================
    GRACEFUL SHUTDOWN

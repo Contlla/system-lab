@@ -6,6 +6,7 @@ const PERMISSIONS = Object.freeze([
   'ordenes.create',
   'ordenes.edit',
   'ordenes.change_status',
+  'ordenes.discount',
   'pacientes.view',
   'pacientes.manage',
   'pacientes.delete',

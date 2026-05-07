@@ -1,4 +1,4 @@
-﻿require('dotenv').config();
+require('dotenv').config();
 
 const path     = require('path');
 const fs       = require('fs');
@@ -23,6 +23,7 @@ const {
   buildAuthUser,
   hasPermission,
 } = require('../permissions');
+const { parsePositiveMoney: parseStrictPositiveMoney } = require('../utils/validation');
 
 
 /* =========================
@@ -40,6 +41,7 @@ const R2_BUCKET = process.env.R2_BUCKET || 'resultados';
 const EMPRESA_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const EMPRESA_RUC_RE = /^[\d-]{5,20}$/;
 const EMPRESA_RFC_RE = /^[A-Za-z0-9-]{5,20}$/;
+const RESULT_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{7,79}$/;
 
 function normalizeEmpresaPayload(body = {}) {
   const cleanText = (value) => String(value || '')
@@ -84,6 +86,86 @@ function signUserToken(user) {
   return jwt.sign(buildAuthUser(user), SECRET, { expiresIn: '8h' });
 }
 
+function buildViewerUrl(uuid) {
+  return `${RESULTADO_VIEWER_BASE_URL.replace(/\/+$/, '')}/${encodeURIComponent(uuid)}`;
+}
+
+function isWithinDirectory(filePath, baseDir) {
+  const relative = path.relative(path.resolve(baseDir), path.resolve(filePath));
+  return relative && !relative.startsWith('..') && !path.isAbsolute(relative);
+}
+
+function uniqueExistingPaths(paths) {
+  const seen = new Set();
+  return paths
+    .filter(Boolean)
+    .map((candidate) => path.resolve(candidate))
+    .filter((candidate) => {
+      if (seen.has(candidate)) return false;
+      seen.add(candidate);
+      return fs.existsSync(candidate);
+    });
+}
+
+function resolveLegacyResultadoPath(archivo) {
+  const archivoPath = String(archivo?.archivo_path || '').trim();
+  const archivoUrl = String(archivo?.archivo_url || '').trim();
+  const ordenId = String(archivo?.orden_id || '').trim();
+  const pathName = archivoPath ? path.basename(archivoPath) : '';
+  const urlName = archivoUrl ? path.basename(archivoUrl) : '';
+  const storageBase = path.resolve(RESULTADOS_STORAGE_BASE);
+  const legacyBase = path.resolve(PUBLIC_DIR, 'uploads/resultados');
+
+  const candidates = uniqueExistingPaths([
+    archivoPath && path.isAbsolute(archivoPath) ? archivoPath : '',
+    archivoPath && path.resolve(archivoPath),
+    archivoPath && ordenId && path.join(storageBase, ordenId, pathName),
+    archivoPath && ordenId && path.join(legacyBase, ordenId, pathName),
+    archivoUrl && path.join(PUBLIC_DIR, archivoUrl.replace(/^\//, '')),
+    archivoUrl && ordenId && path.join(storageBase, ordenId, urlName),
+    archivoUrl && ordenId && path.join(legacyBase, ordenId, urlName),
+    archivoPath && path.join(PUBLIC_DIR, 'uploads/resultados', pathName),
+  ]);
+
+  return candidates.find((candidate) => (
+    isWithinDirectory(candidate, storageBase) || isWithinDirectory(candidate, legacyBase)
+  )) || null;
+}
+
+function absoluteRequestUrl(req, pathname) {
+  const proto = String(req.headers['x-forwarded-proto'] || req.protocol || 'http').split(',')[0].trim();
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
+  if (!host) return pathname;
+  return `${proto}://${host}${pathname}`;
+}
+
+async function getResultadoArchivoPublico(uuid) {
+  const cleanId = String(uuid || '').trim();
+  if (!RESULT_ID_RE.test(cleanId)) {
+    const error = new Error('ID de resultado invalido');
+    error.status = 400;
+    throw error;
+  }
+
+  const archivo = await get(`
+    SELECT ra.*, o.folio, p.nombre AS paciente_nombre, e.nombre AS estudio_nombre
+    FROM resultado_archivos ra
+    JOIN ordenes o ON o.id = ra.orden_id
+    JOIN pacientes p ON p.id = o.paciente_id
+    LEFT JOIN estudios e ON e.id = ra.estudio_id
+    WHERE ra.resultado_uuid = ?
+    LIMIT 1
+  `, [cleanId]);
+
+  if (!archivo) {
+    const error = new Error('Resultado no encontrado');
+    error.status = 404;
+    throw error;
+  }
+
+  return archivo;
+}
+
 function requirePermission(permission) {
   return (req, res, next) => {
     if (!hasPermission(req.user, permission)) {
@@ -104,12 +186,12 @@ function parseUserPayload(body = {}, { requirePassword = true } = {}) {
   const permissions = normalizePermissions(body.permissions);
 
   if (!usuario) return { error: 'Usuario requerido' };
-  if (!isValidRole(role)) return { error: `Rol inválido. Válidos: ${ROLES.join(', ')}` };
+  if (!isValidRole(role)) return { error: `Rol invalido. Valid roles: ${ROLES.join(', ')}` };
   if (requirePassword && (!password || password.length < 10)) {
-    return { error: 'Contraseña mínimo 10 caracteres' };
+    return { error: 'Contrasena minimo 10 caracteres' };
   }
   if (!requirePassword && password && password.length < 10) {
-    return { error: 'Contraseña mínimo 10 caracteres' };
+    return { error: 'Contrasena minimo 10 caracteres' };
   }
 
   return {
@@ -153,7 +235,7 @@ function ahoraLocal() {
 
   const now = new Date();
 
-  // Si se definiÃ³ TZ_OFFSET en .env (ej: TZ_OFFSET=-6 para MÃ©xico Centro),
+  // Si se definió TZ_OFFSET en .env (ej: TZ_OFFSET=-6 para México Centro),
   // calculamos manualmente. Si no, usamos la hora local del sistema operativo.
   let fechaRef;
   if (TZ !== null && !isNaN(TZ)) {
@@ -216,8 +298,7 @@ function parsePositiveInt(value) {
 }
 
 function parsePositiveMoney(value) {
-  const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed * 100) / 100 : null;
+  return parseStrictPositiveMoney(value);
 }
 
 async function getSesionCajaActiva(executor = { get }) {
@@ -484,7 +565,7 @@ async function sincronizarEstadoOrdenPorResultados(ordenId) {
 }
 
 /* =========================
-   MULTER â€” storage corregido
+   MULTER — storage corregido
    Usa /tmp primero, luego mueve al destino correcto
 ========================= */
 const RESULTADOS_STORAGE_BASE = resultadoStorage.RESULTADOS_STORAGE_BASE;
@@ -492,7 +573,7 @@ const RESULTADOS_TMP_DIR = resultadoStorage.RESULTADOS_TMP_DIR;
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Guardar temporalmente, se mueve despuÃ©s con los datos del body
+    // Guardar temporalmente, se mueve después con los datos del body
     fs.mkdirSync(RESULTADOS_TMP_DIR, { recursive: true });
     cb(null, RESULTADOS_TMP_DIR);
   },
@@ -512,7 +593,7 @@ const upload = multer({
   limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (MIMES_VALIDOS.includes(file.mimetype)) cb(null, true);
-    else cb(new Error('Tipo de archivo no permitido. Solo PDF e imÃ¡genes.'));
+    else cb(new Error('Tipo de archivo no permitido. Solo PDF e imágenes.'));
   }
 });
 
@@ -539,8 +620,7 @@ const get_resultados_pendientes = async (req, res) => {
 
     res.json(ordenes);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -562,8 +642,7 @@ const get_resultados_completados = async (req, res) => {
 
     res.json(ordenes);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -613,7 +692,7 @@ const get_resultados_orden_by_folio = async (req, res) => {
       const current = String(archivo.archivo_url || '');
       const filename = path.basename(current || archivo.archivo_path || '');
       const viewerUrl = archivo.resultado_uuid
-        ? `${RESULTADO_VIEWER_BASE_URL}${encodeURIComponent(archivo.resultado_uuid)}`
+        ? buildViewerUrl(archivo.resultado_uuid)
         : '';
       return {
         ...archivo,
@@ -626,8 +705,7 @@ const get_resultados_orden_by_folio = async (req, res) => {
 
     res.json({ orden, estudios, archivos });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -669,20 +747,13 @@ const get_resultados_ver_by_filename = async (req, res) => {
       return object.Body.pipe(res);
     }
 
-    const storedPath = archivo.archivo_path
-      ? path.resolve(archivo.archivo_path)
-      : path.resolve(PUBLIC_DIR, String(archivo.archivo_url || '').replace(/^\//, ''));
-    const privateBase = path.resolve(RESULTADOS_STORAGE_BASE);
-    const legacyBase = path.resolve(PUBLIC_DIR, 'uploads/resultados');
-    const allowed = storedPath.startsWith(privateBase + path.sep) || storedPath.startsWith(legacyBase + path.sep);
-    if (!allowed) return res.status(403).json({ error: 'Ruta de archivo no permitida' });
-    if (!fs.existsSync(storedPath)) return res.status(404).json({ error: 'Archivo no encontrado en disco' });
+    const storedPath = resolveLegacyResultadoPath(archivo);
+    if (!storedPath) return res.status(404).json({ error: 'Archivo no encontrado en disco' });
 
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.sendFile(storedPath);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -767,10 +838,76 @@ const post_resultados_subir = async (req, res) => {
   } catch (err) {
     cleanupUploadedFiles(req.files);
     for (const filePath of movedFiles) fs.unlink(filePath, () => {});
-    console.error(err);
-    if (err.status) return res.status(err.status).json({ error: err.message });
-    if (err.message?.includes('no permitido')) return res.status(400).json({ error: err.message });
-    res.status(500).json({ error: err.message });
+    if (err.message?.includes('no permitido')) err.status = 400;
+    throw err;
+  }
+};
+
+const get_resultado_public_by_uuid = async (req, res) => {
+  try {
+    const archivo = await getResultadoArchivoPublico(req.params.uuid);
+    const pdfPath = `/api/public/resultados/${encodeURIComponent(archivo.resultado_uuid)}/pdf`;
+    const hasLocalFile = archivo.r2_key ? true : Boolean(resolveLegacyResultadoPath(archivo));
+
+    if (!hasLocalFile) {
+      return res.status(404).json({
+        exists: false,
+        error: 'Archivo no encontrado en almacenamiento',
+      });
+    }
+
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.json({
+      exists: true,
+      id: archivo.resultado_uuid,
+      pdfUrl: absoluteRequestUrl(req, pdfPath),
+      viewerUrl: buildViewerUrl(archivo.resultado_uuid),
+      folio: archivo.folio,
+      documentoTipo: archivo.documento_tipo || 'principal',
+      archivoNombre: archivo.archivo_nombre,
+      estudio: archivo.estudio_nombre || null,
+    });
+  } catch (err) {
+    const status = err.status || 500;
+    res.status(status).json({
+      exists: false,
+      error: status === 500 ? 'No se pudo verificar el resultado' : err.message,
+    });
+  }
+};
+
+const stream_resultado_public_pdf_by_uuid = async (req, res) => {
+  try {
+    const archivo = await getResultadoArchivoPublico(req.params.uuid);
+
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Disposition', 'inline');
+
+    if (archivo.r2_key) {
+      const object = await s3Client.send(new GetObjectCommand({
+        Bucket: R2_BUCKET,
+        Key: archivo.r2_key,
+      }));
+      if (object.ContentLength) res.setHeader('Content-Length', String(object.ContentLength));
+      if (req.method === 'HEAD') return res.end();
+      return object.Body.pipe(res);
+    }
+
+    const storedPath = resolveLegacyResultadoPath(archivo);
+    if (!storedPath) return res.status(404).json({ error: 'Archivo no encontrado en almacenamiento' });
+    const stat = fs.statSync(storedPath);
+    res.setHeader('Content-Length', String(stat.size));
+    if (req.method === 'HEAD') return res.end();
+    return res.sendFile(storedPath);
+  } catch (err) {
+    const status = err.status || 500;
+    if (req.method === 'HEAD') return res.sendStatus(status);
+    return res.status(status).json({
+      error: status === 500 ? 'No se pudo abrir el resultado' : err.message,
+    });
   }
 };
 
@@ -799,8 +936,7 @@ const delete_resultados_archivo_by_id = async (req, res) => {
 
     res.json({ ok: true, estado });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -823,8 +959,7 @@ const post_resultados_completar_by_ordenId = async (req, res) => {
     await run(`UPDATE ordenes SET estado = ? WHERE id = ?`, [ESTADOS_ORDEN.COMPLETADO, ordenId]);
     res.json({ ok: true, estado: ESTADOS_ORDEN.COMPLETADO });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -845,8 +980,7 @@ const post_resultados_reabrir_by_ordenId = async (req, res) => {
 
     res.json({ ok: true, estado: estadoNuevo });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -857,6 +991,8 @@ module.exports = {
   get_resultados_orden_by_folio,
   get_resultados_ver_by_filename,
   post_resultados_subir,
+  get_resultado_public_by_uuid,
+  stream_resultado_public_pdf_by_uuid,
   delete_resultados_archivo_by_id,
   post_resultados_completar_by_ordenId,
   post_resultados_reabrir_by_ordenId,

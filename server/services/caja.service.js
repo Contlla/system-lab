@@ -1,4 +1,4 @@
-﻿require('dotenv').config();
+require('dotenv').config();
 
 const path     = require('path');
 const fs       = require('fs');
@@ -21,6 +21,7 @@ const {
   buildAuthUser,
   hasPermission,
 } = require('../permissions');
+const { parsePositiveMoney: parseStrictPositiveMoney } = require('../utils/validation');
 
 
 /* =========================
@@ -100,12 +101,12 @@ function parseUserPayload(body = {}, { requirePassword = true } = {}) {
   const permissions = normalizePermissions(body.permissions);
 
   if (!usuario) return { error: 'Usuario requerido' };
-  if (!isValidRole(role)) return { error: `Rol inválido. Válidos: ${ROLES.join(', ')}` };
+  if (!isValidRole(role)) return { error: `Rol invalido. Valid roles: ${ROLES.join(', ')}` };
   if (requirePassword && (!password || password.length < 10)) {
-    return { error: 'Contraseña mínimo 10 caracteres' };
+    return { error: 'Contrasena minimo 10 caracteres' };
   }
   if (!requirePassword && password && password.length < 10) {
-    return { error: 'Contraseña mínimo 10 caracteres' };
+    return { error: 'Contrasena minimo 10 caracteres' };
   }
 
   return {
@@ -149,7 +150,7 @@ function ahoraLocal() {
 
   const now = new Date();
 
-  // Si se definiÃ³ TZ_OFFSET en .env (ej: TZ_OFFSET=-6 para MÃ©xico Centro),
+  // Si se definió TZ_OFFSET en .env (ej: TZ_OFFSET=-6 para México Centro),
   // calculamos manualmente. Si no, usamos la hora local del sistema operativo.
   let fechaRef;
   if (TZ !== null && !isNaN(TZ)) {
@@ -212,8 +213,7 @@ function parsePositiveInt(value) {
 }
 
 function parsePositiveMoney(value) {
-  const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed * 100) / 100 : null;
+  return parseStrictPositiveMoney(value);
 }
 
 async function getSesionCajaActiva(executor = { get }) {
@@ -480,7 +480,7 @@ async function sincronizarEstadoOrdenPorResultados(ordenId) {
 }
 
 /* =========================
-   MULTER â€” storage corregido
+   MULTER — storage corregido
    Usa /tmp primero, luego mueve al destino correcto
 ========================= */
 const RESULTADOS_STORAGE_BASE = resultadoStorage.RESULTADOS_STORAGE_BASE;
@@ -488,7 +488,7 @@ const RESULTADOS_TMP_DIR = resultadoStorage.RESULTADOS_TMP_DIR;
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Guardar temporalmente, se mueve despuÃ©s con los datos del body
+    // Guardar temporalmente, se mueve después con los datos del body
     fs.mkdirSync(RESULTADOS_TMP_DIR, { recursive: true });
     cb(null, RESULTADOS_TMP_DIR);
   },
@@ -508,7 +508,7 @@ const upload = multer({
   limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (MIMES_VALIDOS.includes(file.mimetype)) cb(null, true);
-    else cb(new Error('Tipo de archivo no permitido. Solo PDF e imÃ¡genes.'));
+    else cb(new Error('Tipo de archivo no permitido. Solo PDF e imágenes.'));
   }
 });
 
@@ -545,8 +545,7 @@ const get_caja_orden_by_folio = async (req, res) => {
 
     res.json({ orden, estudios, pagos, empresa });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -555,8 +554,7 @@ const get_caja_sesion_activa = async (_req, res) => {
     const sesion = await getSesionCajaActiva();
     res.json({ sesion: sesion || null });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -596,9 +594,7 @@ const post_caja_sesion_abrir = async (req, res) => {
 
     res.status(201).json({ ok: true, sesion });
   } catch (err) {
-    if (err.status) return res.status(err.status).json({ error: err.message });
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -622,9 +618,7 @@ const post_caja_pago = async (req, res) => {
 
     res.status(201).json(resultadoSeguro);
   } catch (err) {
-    if (err.status) return res.status(err.status).json({ error: err.message });
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -677,8 +671,7 @@ const get_caja_historial = async (req, res) => {
       desde_corte: sesion.fecha_apertura,
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -777,9 +770,7 @@ const post_caja_corte = async (req, res) => {
       sesion: payload.sesion,
     });
   } catch (err) {
-    if (err.status) return res.status(err.status).json({ error: err.message });
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -811,8 +802,7 @@ const get_caja_cortes = async (req, res) => {
     const cortes = await all(sql, params);
     res.json(cortes);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -847,8 +837,7 @@ const get_caja_cortes_by_id = async (req, res) => {
 
     res.json({ corte, pagos, empresa, sesion });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
@@ -880,8 +869,7 @@ const get_caja_comparativa = async (req, res) => {
 
     res.json(rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    throw err;
   }
 };
 
